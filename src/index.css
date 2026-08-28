@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --background: 0 0% 2%;
+    --surface: 0 0% 4%;
+    --surface-elevated: 0 0% 6%;
+    --border: 0 0% 12%;
+    --text-primary: 0 0% 93%;
+    --text-secondary: 0 0% 60%;
+    --text-muted: 0 0% 40%;
+    --accent: 217 91% 60%;
+    --accent-glow: 217 91% 60%;
+  }
+
+  body {
+    background-color: #050505;
+    color: #ededed;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Immersive Card effects */
+.glass-card {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+}
+
+.glass-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover:hover {
+  border-color: #2e2e2e;
+  background: #0f0f0f;
+  transform: translateY(-1px);
+}
+
+.glow-blue {
+  box-shadow: 0 0 24px -6px rgba(59, 130, 246, 0.2);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 24px -6px rgba(16, 185, 129, 0.2);
+}
+
+.glow-amber {
+  box-shadow: 0 0 24px -6px rgba(245, 158, 11, 0.15);
+}
+
