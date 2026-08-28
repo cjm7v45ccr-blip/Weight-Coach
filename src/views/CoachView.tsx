@@ -11,6 +11,7 @@ import {
   Utensils,
   Flame,
   ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { useFitness } from "../context/FitnessContext";
@@ -71,7 +72,7 @@ export const CoachView: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-[#ededed]">Kinetix AI Coach</h2>
+                <h2 className="text-sm font-bold text-[#ededed]">Thrive AI Coach</h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                   GEMINI 2.5 ACTIVE
                 </span>
@@ -124,6 +125,25 @@ export const CoachView: React.FC = () => {
                 ) : (
                   <div className="markdown-body space-y-2 text-[#ededed]/90">
                     <Markdown>{msg.content}</Markdown>
+                  </div>
+                )}
+
+                {/* Optional Actions Executed Badges */}
+                {msg.actionsExecuted && msg.actionsExecuted.length > 0 && (
+                  <div className="mt-3 pt-2.5 border-t border-[#1a1a1a] space-y-1.5">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> App State Updated Automatically:
+                    </span>
+                    <div className="space-y-1">
+                      {msg.actionsExecuted.map((act, idx) => (
+                        <div
+                          key={idx}
+                          className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-between"
+                        >
+                          <span>✓ {act.description}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

@@ -9,6 +9,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Target,
+  Trash2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -36,15 +37,24 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
   const {
     weightEntries,
     addWeightEntry,
+    deleteWeightEntry,
     weightTrendStats,
     userProfile,
     goals,
     weeklyWorkoutConsistency,
   } = useFitness();
 
+  const todayStr = new Date().toISOString().split("T")[0];
   const [inputWeight, setInputWeight] = useState("");
   const [inputNotes, setInputNotes] = useState("");
+  const [inputDate, setInputDate] = useState(todayStr);
   const [showLogModal, setShowLogModal] = useState(false);
+
+  const getPresetDate = (daysAgo: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    return d.toISOString().split("T")[0];
+  };
 
   // Prepare chart data sorted by date
   const chartData = [...weightEntries]
@@ -57,9 +67,10 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
   const handleLogWeightSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputWeight) return;
-    addWeightEntry(Number(inputWeight), undefined, inputNotes);
+    addWeightEntry(Number(inputWeight), inputDate || todayStr, inputNotes);
     setInputWeight("");
     setInputNotes("");
+    setInputDate(todayStr);
     setShowLogModal(false);
   };
 
@@ -252,19 +263,82 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
 
       {/* LOG WEIGHT MODAL */}
       {showLogModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-semibold text-[#ededed]">Record Scale Weight</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="w-full max-w-md bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-2 border-b border-[#1f1f1f]">
+              <div className="flex items-center gap-2">
+                <Scale className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-base font-semibold text-[#ededed]">Record Scale Weight</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLogModal(false)}
+                className="text-white/40 hover:text-white text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleLogWeightSubmit} className="space-y-4">
+              {/* Date Selection & Past Weight Options */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/70 flex items-center justify-between">
+                  <span>Entry Date</span>
+                  <span className="text-[10px] text-indigo-400 font-mono">Log past weight anytime</span>
+                </label>
+                <div className="flex items-center gap-1.5 pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setInputDate(getPresetDate(0))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all ${
+                      inputDate === getPresetDate(0)
+                        ? "bg-indigo-600 text-white font-bold"
+                        : "bg-[#0f0f0f] border border-[#1a1a1a] text-white/60 hover:text-white"
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputDate(getPresetDate(1))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all ${
+                      inputDate === getPresetDate(1)
+                        ? "bg-indigo-600 text-white font-bold"
+                        : "bg-[#0f0f0f] border border-[#1a1a1a] text-white/60 hover:text-white"
+                    }`}
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputDate(getPresetDate(2))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all ${
+                      inputDate === getPresetDate(2)
+                        ? "bg-indigo-600 text-white font-bold"
+                        : "bg-[#0f0f0f] border border-[#1a1a1a] text-white/60 hover:text-white"
+                    }`}
+                  >
+                    2 Days Ago
+                  </button>
+                </div>
+                <input
+                  type="date"
+                  value={inputDate}
+                  max={todayStr}
+                  onChange={(e) => setInputDate(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-xs font-mono text-[#ededed] focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
               <div>
                 <label className="text-xs text-white/70 block mb-1">
-                  Weight ({userProfile.preferredUnits.toUpperCase()}) *
+                  Scale Weight ({userProfile.preferredUnits.toUpperCase()}) *
                 </label>
                 <input
                   type="number"
                   step="0.1"
                   required
-                  placeholder="181.4"
+                  placeholder="e.g. 174.5"
                   value={inputWeight}
                   onChange={(e) => setInputWeight(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-sm font-mono text-[#ededed] focus:outline-none focus:border-indigo-500"
@@ -275,14 +349,14 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                 <label className="text-xs text-white/70 block mb-1">Notes (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Morning fasted"
+                  placeholder="e.g. Morning fasted, post-workout"
                   value={inputNotes}
                   onChange={(e) => setInputNotes(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-xs text-[#ededed] focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-[#1a1a1a]">
                 <button
                   type="button"
                   onClick={() => setShowLogModal(false)}
@@ -298,6 +372,47 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
                 </button>
               </div>
             </form>
+
+            {/* Weigh-in History Management */}
+            {weightEntries.length > 0 && (
+              <div className="pt-3 border-t border-[#1a1a1a] space-y-2">
+                <div className="flex items-center justify-between text-xs text-white/60">
+                  <span className="font-semibold text-white/80">Recent Logged Weigh-ins</span>
+                  <span className="text-[10px] font-mono">{weightEntries.length} entries</span>
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                  {[...weightEntries]
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 8)
+                    .map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between p-2 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-white/50 text-[11px]">{entry.date}</span>
+                          <span className="font-bold text-indigo-300">
+                            {entry.weight} {userProfile.preferredUnits}
+                          </span>
+                          {entry.notes && (
+                            <span className="text-[10px] text-white/40 truncate max-w-[100px]">
+                              ({entry.notes})
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteWeightEntry(entry.id)}
+                          className="p-1 rounded text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                          title="Delete entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

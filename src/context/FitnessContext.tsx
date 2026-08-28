@@ -15,6 +15,7 @@ import {
   SetRecord,
   ExerciseRecord,
   ProgressiveOverloadAdvice,
+  AIActionExecution,
 } from "../types";
 import {
   initialUserProfile,
@@ -74,6 +75,7 @@ interface FitnessContextType {
   // Weight & Activity
   weightEntries: WeightEntry[];
   addWeightEntry: (weight: number, date?: string, notes?: string) => void;
+  deleteWeightEntry: (idOrDate: string) => void;
   activityEntries: ActivityEntry[];
   logWater: (amountMl: number) => void;
   todayWaterMl: number;
@@ -986,7 +988,20 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       notes,
     };
     setWeightEntries((prev) => [newEntry, ...prev.filter((w) => w.date !== date)]);
-    setUserProfileState((prev) => ({ ...prev, currentWeight: Number(weight) }));
+    // Only update current scale weight if the entry is today's date or newer than existing
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (date >= todayStr) {
+      setUserProfileState((prev) => ({ ...prev, currentWeight: Number(weight) }));
+    }
+  }, []);
+
+  const deleteWeightEntry = useCallback((idOrDate: string) => {
+    setWeightEntries((prev) => prev.filter((w) => w.id !== idOrDate && w.date !== idOrDate));
+  }, []);
+
+  const clearTodayFoodLogs = useCallback(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setFoodEntries((prev) => prev.filter((item) => !item.timestamp.startsWith(today)));
   }, []);
 
   const logWater = useCallback((amountMl: number) => {
@@ -1039,73 +1054,6 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteGoal = useCallback((id: string) => {
     setGoals((prev) => prev.filter((g) => g.id !== id));
   }, []);
-
-  // AI Chat & Coach
-  const sendMessageToCoach = useCallback(
-    async (text: string) => {
-      const userMsg: AICoachMessage = {
-        id: "msg-" + Date.now(),
-        role: "user",
-        content: text,
-        timestamp: new Date().toISOString(),
-      };
-
-      setAiMessages((prev) => [...prev, userMsg]);
-      setIsAiResponding(true);
-
-      const userContext = {
-        name: userProfile.name,
-        primaryGoal: userProfile.primaryGoal,
-        targetCalories: userProfile.dailyTargets.calories,
-        todayCalories: todayTotals.calories,
-        remainingCalories: remainingMacros.calories,
-        targetProtein: userProfile.dailyTargets.protein,
-        todayProtein: todayTotals.protein,
-        remainingProtein: remainingMacros.protein,
-        targetCarbs: userProfile.dailyTargets.carbs,
-        todayCarbs: todayTotals.carbs,
-        targetFat: userProfile.dailyTargets.fat,
-        todayFat: todayTotals.fat,
-        todayWorkoutName: todayWorkoutScheduledName,
-        todayWorkoutCompleted: isTodayWorkoutCompleted,
-        weeklyWorkoutsCompleted: weeklyWorkoutConsistency.completed,
-        weeklyWorkoutTarget: userProfile.weeklyWorkoutTarget,
-        currentWeight: userProfile.currentWeight,
-        sevenDayAvgWeight: weightTrendStats.sevenDayAvg,
-        unit: userProfile.preferredUnits,
-        dietaryPreferences: userProfile.dietaryPreferences,
-        avoidedFoods: userProfile.avoidedFoods,
-        nextActionText: nextBestAction.title,
-      };
-
-      try {
-        const response = await aiService.sendChatMessage(text, aiMessages, userContext);
-        const assistantMsg: AICoachMessage = {
-          id: "msg-" + (Date.now() + 1),
-          role: "assistant",
-          content: response.content,
-          timestamp: new Date().toISOString(),
-          suggestions: response.suggestions,
-        };
-        setAiMessages((prev) => [...prev, assistantMsg]);
-      } catch (err) {
-        console.error("Coach error:", err);
-      } finally {
-        setIsAiResponding(false);
-      }
-    },
-    [
-      userProfile,
-      todayTotals,
-      remainingMacros,
-      todayWorkoutScheduledName,
-      isTodayWorkoutCompleted,
-      weeklyWorkoutConsistency,
-      weightTrendStats,
-      nextBestAction,
-      aiMessages,
-    ]
-  );
 
   const toggleFocusItem = useCallback((id: string) => {
     setDailyFocus((prev) =>
@@ -1281,6 +1229,211 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEYS.FOCUS, JSON.stringify([]));
   }, []);
 
+  const executeAIActions = useCallback(
+    (actions: AIActionExecution[]) => {
+      if (!actions || !Array.isArray(actions)) return;
+      for (const action of actions) {
+        try {
+          switch (action.type) {
+            case "update_profile":
+              updateUserProfile(action.payload);
+              break;
+            case "update_targets":
+              updateDailyTargets(action.payload);
+              break;
+            case "log_weight":
+              if (action.payload?.weight) {
+                const dateStr = action.payload.date || new Date().toISOString().split("T")[0];
+                addWeightEntry(Number(action.payload.weight), dateStr, action.payload.notes);
+              }
+              break;
+            case "delete_weight":
+              if (action.payload?.id || action.payload?.date) {
+                deleteWeightEntry(action.payload.id || action.payload.date);
+              }
+              break;
+            case "log_food":
+              if (Array.isArray(action.payload?.items)) {
+                addFoodItems(action.payload.items);
+              } else if (action.payload?.name) {
+                addFoodItem(action.payload);
+              }
+              break;
+            case "delete_food":
+              if (action.payload?.id) {
+                deleteFoodItem(action.payload.id);
+              }
+              break;
+            case "clear_food_logs":
+              clearTodayFoodLogs();
+              break;
+            case "add_goal":
+              if (action.payload?.title) {
+                addGoal(action.payload);
+              }
+              break;
+            case "update_goal":
+              if (action.payload?.id && action.payload?.updates) {
+                updateGoal(action.payload.id, action.payload.updates);
+              }
+              break;
+            case "delete_goal":
+              if (action.payload?.id) {
+                deleteGoal(action.payload.id);
+              }
+              break;
+            case "delete_workout":
+              if (action.payload?.id) {
+                deleteWorkout(action.payload.id);
+              }
+              break;
+            case "clear_all_data":
+              clearAllData();
+              break;
+            case "reset_demo_data":
+              resetToDemoData();
+              break;
+          }
+        } catch (err) {
+          console.error("Failed executing AI action:", action, err);
+        }
+      }
+    },
+    [
+      updateUserProfile,
+      updateDailyTargets,
+      addWeightEntry,
+      deleteWeightEntry,
+      clearTodayFoodLogs,
+      addFoodItems,
+      addFoodItem,
+      deleteFoodItem,
+      addGoal,
+      updateGoal,
+      deleteGoal,
+      deleteWorkout,
+      clearAllData,
+      resetToDemoData,
+    ]
+  );
+
+  // AI Chat & Coach
+  const sendMessageToCoach = useCallback(
+    async (text: string) => {
+      const userMsg: AICoachMessage = {
+        id: "msg-" + Date.now(),
+        role: "user",
+        content: text,
+        timestamp: new Date().toISOString(),
+      };
+
+      setAiMessages((prev) => [...prev, userMsg]);
+      setIsAiResponding(true);
+
+      const userContext = {
+        name: userProfile.name,
+        age: userProfile.age,
+        gender: userProfile.gender,
+        heightCm: userProfile.heightCm,
+        primaryGoal: userProfile.primaryGoal,
+        activityLevel: userProfile.activityLevel,
+        goalWeight: userProfile.goalWeight,
+        targetCalories: userProfile.dailyTargets.calories,
+        todayCalories: todayTotals.calories,
+        remainingCalories: remainingMacros.calories,
+        targetProtein: userProfile.dailyTargets.protein,
+        todayProtein: todayTotals.protein,
+        remainingProtein: remainingMacros.protein,
+        targetCarbs: userProfile.dailyTargets.carbs,
+        todayCarbs: todayTotals.carbs,
+        targetFat: userProfile.dailyTargets.fat,
+        todayFat: todayTotals.fat,
+        steps: todayTotals.steps,
+        targetSteps: userProfile.dailyTargets.steps,
+        waterMl: todayWaterMl,
+        targetWaterMl: userProfile.dailyTargets.waterMl,
+        todayWorkoutName: todayWorkoutScheduledName,
+        todayWorkoutCompleted: isTodayWorkoutCompleted,
+        weeklyWorkoutsCompleted: weeklyWorkoutConsistency.completed,
+        weeklyWorkoutTarget: userProfile.weeklyWorkoutTarget,
+        currentWeight: userProfile.currentWeight,
+        sevenDayAvgWeight: weightTrendStats.sevenDayAvg,
+        unit: userProfile.preferredUnits,
+        dietaryPreferences: userProfile.dietaryPreferences,
+        avoidedFoods: userProfile.avoidedFoods,
+        nextActionText: nextBestAction.title,
+        recentWorkouts: workouts.slice(0, 5).map((w) => ({
+          id: w.id,
+          name: w.name,
+          date: w.date,
+          completed: w.completed,
+          totalVolume: w.totalVolume,
+        })),
+        todayFoodItems: todayFoodEntries.map((f) => ({
+          id: f.id,
+          name: f.name,
+          mealType: f.mealType,
+          calories: f.calories,
+          protein: f.protein,
+          carbs: f.carbs,
+          fat: f.fat,
+        })),
+        weightEntries: weightEntries.slice(0, 14).map((w) => ({
+          id: w.id,
+          date: w.date,
+          weight: w.weight,
+          notes: w.notes,
+        })),
+        goals: goals.map((g) => ({
+          id: g.id,
+          title: g.title,
+          currentValue: g.currentValue,
+          targetValue: g.targetValue,
+          unit: g.unit,
+        })),
+      };
+
+      try {
+        const response = await aiService.sendChatMessage(text, aiMessages, userContext);
+
+        if (response.actions && response.actions.length > 0) {
+          executeAIActions(response.actions);
+        }
+
+        const assistantMsg: AICoachMessage = {
+          id: "msg-" + (Date.now() + 1),
+          role: "assistant",
+          content: response.content,
+          timestamp: new Date().toISOString(),
+          suggestions: response.suggestions,
+          actionsExecuted: response.actions,
+        };
+        setAiMessages((prev) => [...prev, assistantMsg]);
+      } catch (err) {
+        console.error("Coach error:", err);
+      } finally {
+        setIsAiResponding(false);
+      }
+    },
+    [
+      userProfile,
+      todayTotals,
+      remainingMacros,
+      todayWaterMl,
+      todayWorkoutScheduledName,
+      isTodayWorkoutCompleted,
+      weeklyWorkoutConsistency,
+      weightTrendStats,
+      nextBestAction,
+      workouts,
+      todayFoodEntries,
+      weightEntries,
+      goals,
+      aiMessages,
+      executeAIActions,
+    ]
+  );
+
   return (
     <FitnessContext.Provider
       value={{
@@ -1314,6 +1467,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         adjustRestTimer,
         weightEntries,
         addWeightEntry,
+        deleteWeightEntry,
         activityEntries,
         logWater,
         todayWaterMl,

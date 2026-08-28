@@ -14,7 +14,7 @@ import {
 export const initialUserProfile: UserProfile = {
   id: "user-1",
   name: "Alex Rivera",
-  email: "alex.rivera@kinetix.io",
+  email: "alex.rivera@thrive.fit",
   gender: "male",
   age: 28,
   heightCm: 178,
@@ -510,7 +510,7 @@ export const initialAIChat: AICoachMessage[] = [
   {
     id: "msg-1",
     role: "assistant",
-    content: "Welcome to Kinetix. I'm your dedicated fitness and nutrition coach. I monitor your training volume, recovery metrics, and macro distribution to give you direct, actionable recommendations.\n\nToday, you have **Upper Body A** scheduled. You've logged **1,240 / 1,850 kcal** and **98g / 145g protein** so far. What would you like to tackle first?",
+    content: "Welcome to Thrive. I'm your dedicated fitness and nutrition coach. I monitor your training volume, recovery metrics, and macro distribution to give you direct, actionable recommendations.\n\nToday, you have **Upper Body A** scheduled. You've logged **1,240 / 1,850 kcal** and **98g / 145g protein** so far. What would you like to tackle first?",
     timestamp: "2026-08-27T09:00:00.000Z",
     suggestions: [
       "What should I eat for my next meal?",

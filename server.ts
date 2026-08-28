@@ -150,7 +150,7 @@ function heuristicParseFood(text: string) {
 
 // Helper for resilient Gemini content generation with multi-model fallback and graceful retries
 async function callGeminiWithFallback(paramsGenerator: (model: string) => any) {
-  const models = ["gemini-3.7-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+  const models = ["gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-flash-latest"];
   let lastError: any = null;
 
   for (const model of models) {
@@ -239,9 +239,17 @@ Instructions:
 });
 
 // Contextual fallback response generator for Coach
-function generateContextualCoachReply(message: string, userContext: any) {
-  const lower = (message || "").toLowerCase();
+function generateContextualCoachReply(message: string, userContext: any): { content: string; actions?: any[]; suggestions: string[] } {
+  const lower = (message || "").toLowerCase().trim();
   let reply = "";
+  const actions: any[] = [];
+  const defaultSuggestions = [
+    "What should I eat for my next meal?",
+    "How should I apply progressive overload?",
+    "Update my daily calorie target to 2,100",
+    "Log past weight: 173.5 lbs for yesterday",
+  ];
+
   const remainingP = Math.max(0, Math.round(userContext?.remainingProtein ?? 30));
   const todayP = Math.round(userContext?.todayProtein ?? 0);
   const remainingCal = Math.round(userContext?.remainingCalories ?? 500);
@@ -249,9 +257,102 @@ function generateContextualCoachReply(message: string, userContext: any) {
   const workoutName = userContext?.todayWorkoutName || "Upper Body A";
   const isWorkoutDone = !!userContext?.todayWorkoutCompleted;
 
+  // Heuristic action parsing for offline/fallback mode
+  // 1. Weight Logging / Past Weight
+  const weightMatch = lower.match(/(?:log|record|set|update|change)?\s*(?:my\s*)?weight\s*(?:to|as|is)?\s*(\d+(?:\.\d+)?)\s*(?:lbs?|kg)?(?:\s*(?:for|on|date)?\s*(yesterday|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}))?/i);
+  if (weightMatch && weightMatch[1]) {
+    const numWeight = parseFloat(weightMatch[1]);
+    let dateStr = new Date().toISOString().split("T")[0];
+    if (weightMatch[2]) {
+      if (weightMatch[2].toLowerCase() === "yesterday") {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        dateStr = d.toISOString().split("T")[0];
+      } else if (weightMatch[2].includes("-")) {
+        dateStr = weightMatch[2];
+      }
+    }
+
+    actions.push({
+      type: "log_weight",
+      payload: { weight: numWeight, date: dateStr, notes: "Logged via Thrive AI Coach" },
+      description: `Logged weight: ${numWeight} ${userContext?.unit || "lbs"} for ${dateStr}`,
+    });
+
+    return {
+      content: `I have recorded your scale weight of **${numWeight} ${userContext?.unit || "lbs"}** for **${dateStr}**.\n\nYour rolling trends and body composition forecasts have been automatically updated!`,
+      actions,
+      suggestions: defaultSuggestions,
+    };
+  }
+
+  // 2. Calorie / Target Updates
+  const calMatch = lower.match(/(?:set|change|update)?\s*(?:my\s*)?(?:daily\s*)?calories?\s*(?:target\s*)?(?:to|as|=)?\s*(\d{3,5})/i);
+  const proteinMatch = lower.match(/(?:set|change|update)?\s*(?:my\s*)?(?:daily\s*)?protein\s*(?:target\s*)?(?:to|as|=)?\s*(\d{2,4})/i);
+  if (calMatch || proteinMatch) {
+    const newCal = calMatch ? parseInt(calMatch[1]) : undefined;
+    const newProt = proteinMatch ? parseInt(proteinMatch[1]) : undefined;
+    const updates: any = {};
+    const descParts: string[] = [];
+
+    if (newCal) {
+      updates.calories = newCal;
+      descParts.push(`Calories → ${newCal} kcal`);
+    }
+    if (newProt) {
+      updates.protein = newProt;
+      descParts.push(`Protein → ${newProt}g`);
+    }
+
+    actions.push({
+      type: "update_targets",
+      payload: updates,
+      description: `Updated targets: ${descParts.join(", ")}`,
+    });
+
+    return {
+      content: `I've updated your daily targets:\n${descParts.map(p => `- **${p}**`).join("\n")}\n\nYour dashboard and macro progress bars are now synced to these new numbers.`,
+      actions,
+      suggestions: defaultSuggestions,
+    };
+  }
+
+  // 3. Name change
+  const nameMatch = lower.match(/(?:change|update|set)\s*(?:my\s*)?name\s*(?:to|is)\s*([a-zA-Z\s]+)/i);
+  if (nameMatch && nameMatch[1]) {
+    const newName = nameMatch[1].trim();
+    actions.push({
+      type: "update_profile",
+      payload: { name: newName },
+      description: `Updated profile name to ${newName}`,
+    });
+
+    return {
+      content: `Your profile name has been updated to **${newName}**.`,
+      actions,
+      suggestions: defaultSuggestions,
+    };
+  }
+
+  // 4. Clear/Delete logs
+  if (lower.includes("clear food") || lower.includes("delete food log") || lower.includes("remove food log")) {
+    actions.push({
+      type: "clear_food_logs",
+      payload: {},
+      description: "Cleared today's food logs",
+    });
+
+    return {
+      content: "I have cleared your food logs for today. Your daily macro totals have been reset to zero.",
+      actions,
+      suggestions: defaultSuggestions,
+    };
+  }
+
+  // Fallback conversational logic
   if (lower.includes("hungry") || lower.includes("eat") || lower.includes("meal") || lower.includes("food") || lower.includes("snack")) {
     if (remainingP > 20) {
-      reply = `You currently have **${remainingP}g of protein** and **${remainingCal} kcal** remaining for today. To maximize muscle protein synthesis while staying in your target budget, consider a high-protein option like:\n\n- **Option 1**: 200g Greek yogurt with a scoop of berries (~25g protein, 170 kcal)\n- **Option 2**: 150g grilled chicken breast wrap with light greens (~35g protein, 240 kcal)\n- **Option 3**: Whey protein shake with 1 cup unsweetened almond milk (~25g protein, 140 kcal)\n\n**Next action**: Pick your choice and fast-log it in the Nutrition tab!`;
+      reply = `You currently have **${remainingP}g of protein** and **${remainingCal} kcal** remaining for today. To maximize muscle protein synthesis while staying in your target budget, consider a high-protein option like:\n\n- **Option 1**: 200g Greek yogurt with a scoop of berries (~25g protein, 170 kcal)\n- **Option 2**: 150g grilled chicken breast wrap with light greens (~35g protein, 240 kcal)\n- **Option 3**: Whey protein shake with 1 cup unsweetened almond milk (~25g protein, 140 kcal)\n\n**Next action**: Tell me what you ate or log it directly in the Nutrition tab!`;
     } else {
       reply = `You've already hit your primary protein goal for today (${todayP}g)! You have **${remainingCal} kcal** left. If you need energy, reach for a complex carb snack like an apple with a tablespoon of peanut butter or a bowl of oatmeal.`;
     }
@@ -262,14 +363,18 @@ function generateContextualCoachReply(message: string, userContext: any) {
       reply = `Your scheduled session for today is **${workoutName}**.\n\nKey coaching keys for today:\n1. Warm up with 2 lighter ramp-up sets before working weight.\n2. Apply **progressive overload**: if you hit the top of your rep range last time, add 2.5–5 lbs or push for +1 extra clean rep.\n3. Keep rest periods between 90–120s on compound movements.\n\n**Next action**: Tap **Start Workout** in your dashboard to begin logging sets!`;
     }
   } else if (lower.includes("weight") || lower.includes("scale") || lower.includes("plateau") || lower.includes("fat")) {
-    reply = `Daily scale weight fluctuates naturally due to water retention, glycogen storage, sodium, and muscle inflammation after lifting. Look at your **7-day rolling average trend** rather than day-to-day spikes. As long as your weekly adherence is high, the physiological adaptations are happening.`;
+    reply = `Daily scale weight fluctuates naturally due to water retention, glycogen storage, sodium, and muscle inflammation after lifting. Look at your **7-day rolling average trend** rather than day-to-day spikes. You can also tell me to log past or current weights anytime!`;
   } else if (lower.includes("recovery") || lower.includes("sleep") || lower.includes("sore")) {
     reply = `Optimal recovery comes down to three pillars:\n1. **Hydration**: Drink 2.5–3L throughout the day.\n2. **Protein Distribution**: Spread intake across 3-4 meals to maintain steady muscle protein synthesis.\n3. **Sleep**: Aim for 7–9 hours to maximize growth hormone release and nervous system recovery.`;
   } else {
-    reply = `Based on your goal of **${goal}**, you've consumed **${Math.round(userContext?.todayCalories || 0)} / ${userContext?.targetCalories || 2000} kcal** with **${remainingP}g protein remaining**.\n\n${isWorkoutDone ? "Your training for today is in the books! Keep hydration and recovery dialed in." : `Your priority today is completing **${workoutName}** and hitting your daily protein target.`}\n\nWhat specific questions do you have regarding your training or nutrition?`;
+    reply = `Based on your goal of **${goal}**, you've consumed **${Math.round(userContext?.todayCalories || 0)} / ${userContext?.targetCalories || 2000} kcal** with **${remainingP}g protein remaining**.\n\n${isWorkoutDone ? "Your training for today is in the books! Keep hydration and recovery dialed in." : `Your priority today is completing **${workoutName}** and hitting your daily protein target.`}\n\nYou can ask me questions, or tell me to update your targets, log historical weights, log food, or manage your data anytime.`;
   }
 
-  return reply;
+  return {
+    content: reply,
+    actions,
+    suggestions: defaultSuggestions,
+  };
 }
 
 // 2. AI Coach Interactive Chat Endpoint
@@ -283,44 +388,93 @@ app.post("/api/ai/coach", async (req: Request, res: Response) => {
   const defaultSuggestions = [
     "What should I eat for my next meal?",
     "How should I apply progressive overload?",
-    "Why is my scale weight fluctuating?",
-    "What's my next best action today?",
+    "Update my daily calorie target to 2,100",
+    "Log past weight: 173.5 lbs for yesterday",
   ];
 
   if (!genAI) {
-    const fallbackReply = generateContextualCoachReply(message, userContext);
+    const fallback = generateContextualCoachReply(message, userContext);
     return res.json({
       role: "assistant",
-      content: fallbackReply,
-      suggestions: defaultSuggestions,
+      content: fallback.content,
+      suggestions: fallback.suggestions,
+      actions: fallback.actions,
     });
   }
 
   try {
-    const systemPrompt = `You are KINETIX, an elite, science-grounded AI Fitness & Nutrition Operating System and Personal Coach.
+    const systemPrompt = `You are Thrive AI, an elite, science-grounded AI Fitness & Nutrition Operating System and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the Thrive app.
 
-PRODUCT PHILOSOPHY:
-- "Don't just show the user data. Tell them what to do next."
+CORE PHILOSOPHY:
+- "Don't just show the user data. Tell them what to do next, or execute changes directly for them."
 - Convert data into clear, direct, actionable steps.
-- Maintain a calm, minimalist, highly intelligent, supportive tone (like Linear/Apple Health meets world-class coach).
-- Zero generic fluff. No toxic positivity, no shaming, no "good/bad" food labels.
-- Support healthy, sustainable habits: NEVER encourage crash diets, extreme calorie restriction (<1200 kcal), purging, excessive dehydration, or overtraining.
-- Structure answers clearly with concise bullet points or short paragraphs.
+- Maintain a calm, minimalist, highly intelligent, supportive tone.
+- Zero generic fluff. No toxic positivity, no shaming.
+- Support healthy, sustainable habits: NEVER encourage crash diets, extreme restriction (<1200 kcal), purging, or overtraining.
 
-USER'S REAL-TIME CONTEXT:
-Name: ${userContext?.name || "Athlete"}
-Primary Goal: ${userContext?.primaryGoal || "Build muscle & strength"}
-Target Calories: ${userContext?.targetCalories || 2000} kcal (Consumed: ${userContext?.todayCalories || 0} kcal, Remaining: ${userContext?.remainingCalories || 2000} kcal)
-Target Protein: ${userContext?.targetProtein || 140}g (Consumed: ${userContext?.todayProtein || 0}g, Remaining: ${userContext?.remainingProtein || 140}g)
-Target Carbs: ${userContext?.targetCarbs || 220}g (Consumed: ${userContext?.todayCarbs || 0}g)
-Target Fat: ${userContext?.targetFat || 65}g (Consumed: ${userContext?.todayFat || 0}g)
-Today's Scheduled Workout: ${userContext?.todayWorkoutName || "Upper Body A"} (Completed: ${userContext?.todayWorkoutCompleted ? "YES" : "NO"})
-Workout Consistency This Week: ${userContext?.weeklyWorkoutsCompleted || 0} / ${userContext?.weeklyWorkoutTarget || 3} workouts
-Current Weight: ${userContext?.currentWeight || 175} ${userContext?.unit || "lbs"} (7-Day Average: ${userContext?.sevenDayAvgWeight || 175} ${userContext?.unit || "lbs"})
-Dietary Preferences: ${userContext?.dietaryPreferences?.join(", ") || "None"}
-Avoided Foods: ${userContext?.avoidedFoods?.join(", ") || "None"}
+FULL USER DATA & LOGS CONTEXT:
+Profile:
+- Name: ${userContext?.name || "Athlete"}
+- Age: ${userContext?.age || 28}, Gender: ${userContext?.gender || "not specified"}, Height: ${userContext?.heightCm || 178} cm
+- Primary Goal: ${userContext?.primaryGoal || "lose_fat"}
+- Current Weight: ${userContext?.currentWeight || 175} ${userContext?.unit || "lbs"} (7-Day Avg: ${userContext?.sevenDayAvgWeight || 175} ${userContext?.unit || "lbs"}, Goal Weight: ${userContext?.goalWeight || 165} ${userContext?.unit || "lbs"})
+- Activity Level: ${userContext?.activityLevel || "moderately_active"}
+- Weekly Workout Target: ${userContext?.weeklyWorkoutTarget || 4} sessions/week (Completed this week: ${userContext?.weeklyWorkoutsCompleted || 0})
+- Preferred Units: ${userContext?.unit || "lbs"}
+- Dietary Preferences: ${userContext?.dietaryPreferences?.join(", ") || "None"}
+- Avoided Foods: ${userContext?.avoidedFoods?.join(", ") || "None"}
 
-Keep your answer focused, actionable, and concise. End with a crisp summary of what they should do next.`;
+Daily Targets & Today's Progress:
+- Target Calories: ${userContext?.targetCalories || 2000} kcal (Consumed: ${userContext?.todayCalories || 0} kcal, Remaining: ${userContext?.remainingCalories || 2000} kcal)
+- Target Protein: ${userContext?.targetProtein || 140}g (Consumed: ${userContext?.todayProtein || 0}g, Remaining: ${userContext?.remainingProtein || 140}g)
+- Target Carbs: ${userContext?.targetCarbs || 220}g (Consumed: ${userContext?.todayCarbs || 0}g)
+- Target Fat: ${userContext?.targetFat || 65}g (Consumed: ${userContext?.todayFat || 0}g)
+- Steps: ${userContext?.steps || 0} / ${userContext?.targetSteps || 8500}
+- Water: ${userContext?.waterMl || 0} / ${userContext?.targetWaterMl || 2800} ml
+
+Training & Workout Logs:
+- Scheduled Today: ${userContext?.todayWorkoutName || "Upper Body A"} (Completed: ${userContext?.todayWorkoutCompleted ? "YES" : "NO"})
+- Recent Completed Workouts: ${JSON.stringify(userContext?.recentWorkouts || [])}
+
+Nutrition Logs (Today):
+- Today's Food Logs: ${JSON.stringify(userContext?.todayFoodItems || [])}
+
+Weight Logs History:
+- Logged Weigh-ins: ${JSON.stringify(userContext?.weightEntries || [])}
+
+Active Goals:
+- Active Goals: ${JSON.stringify(userContext?.goals || [])}
+
+DIRECT APP CONTROL & ACTION SCHEMA:
+Whenever the user asks you to change, update, log, remove, or modify their information, targets, weight (including PAST dates!), food, goals, or workouts, you MUST include an "actions" array in your JSON output so the app executes the modifications instantly.
+
+Available action types:
+1. "update_profile": payload: { name?, age?, currentWeight?, goalWeight?, primaryGoal?, activityLevel?, weeklyWorkoutTarget?, preferredUnits?, dietaryPreferences?: string[], avoidedFoods?: string[] }
+2. "update_targets": payload: { calories?: number, protein?: number, carbs?: number, fat?: number, steps?: number, waterMl?: number }
+3. "log_weight": payload: { weight: number, date?: string (YYYY-MM-DD), notes?: string } (Allows logging weight for past dates!)
+4. "delete_weight": payload: { id?: string, date?: string }
+5. "log_food": payload: { items: [{ name: string, mealType?: string, calories: number, protein: number, carbs: number, fat: number }] }
+6. "delete_food": payload: { id?: string, name?: string }
+7. "clear_food_logs": payload: {}
+8. "add_goal": payload: { title: string, startValue: number, currentValue: number, targetValue: number, unit: string, category?: string }
+9. "update_goal": payload: { id: string, updates: { currentValue?: number, targetValue?: number, title?: string } }
+10. "delete_goal": payload: { id: string }
+11. "delete_workout": payload: { id: string }
+12. "clear_all_data": payload: {}
+13. "reset_demo_data": payload: {}
+
+Respond strictly in JSON format with this structure:
+{
+  "content": "Your markdown-formatted coach message explaining advice and confirming any changes made.",
+  "suggestions": ["Follow up suggestion 1", "Follow up suggestion 2"],
+  "actions": [
+    {
+      "type": "update_targets",
+      "payload": { "calories": 2100, "protein": 160 },
+      "description": "Updated daily targets: 2,100 kcal, 160g protein"
+    }
+  ]
+}`;
 
     const contents = [
       ...conversationHistory.slice(-6).map((m: any) => ({
@@ -338,23 +492,31 @@ Keep your answer focused, actionable, and concise. End with a crisp summary of w
       contents: contents as any,
       config: {
         systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
       },
     }));
 
-    const replyText = response.text || generateContextualCoachReply(message, userContext);
+    let resultJson: any = null;
+    try {
+      resultJson = JSON.parse(response.text?.trim() || "{}");
+    } catch {
+      resultJson = { content: response.text || generateContextualCoachReply(message, userContext).content };
+    }
 
     return res.json({
       role: "assistant",
-      content: replyText,
-      suggestions: defaultSuggestions,
+      content: resultJson.content || generateContextualCoachReply(message, userContext).content,
+      suggestions: resultJson.suggestions || defaultSuggestions,
+      actions: resultJson.actions || [],
     });
   } catch (error) {
     console.warn("Gemini Coach Chat encountered temporary API issue, serving contextual response:", error);
-    const fallbackReply = generateContextualCoachReply(message, userContext);
+    const fallback = generateContextualCoachReply(message, userContext);
     return res.json({
       role: "assistant",
-      content: fallbackReply,
-      suggestions: defaultSuggestions,
+      content: fallback.content,
+      suggestions: fallback.suggestions,
+      actions: fallback.actions,
     });
   }
 });

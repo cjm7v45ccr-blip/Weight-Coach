@@ -43,7 +43,7 @@ export const aiService = {
     message: string,
     history: AICoachMessage[],
     userContext: any
-  ): Promise<{ role: "assistant"; content: string; suggestions?: string[] }> {
+  ): Promise<{ role: "assistant"; content: string; suggestions?: string[]; actions?: any[] }> {
     try {
       const res = await fetch("/api/ai/coach", {
         method: "POST",
@@ -73,6 +73,7 @@ export const aiService = {
           "Review progressive overload",
           "Weekly review summary",
         ],
+        actions: [],
       };
     }
   },

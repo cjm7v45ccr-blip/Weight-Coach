@@ -119,12 +119,32 @@ export interface ActivityEntry {
   distanceKm?: number;
 }
 
+export interface AIActionExecution {
+  type:
+    | 'update_profile'
+    | 'update_targets'
+    | 'log_weight'
+    | 'delete_weight'
+    | 'log_food'
+    | 'delete_food'
+    | 'clear_food_logs'
+    | 'add_goal'
+    | 'update_goal'
+    | 'delete_goal'
+    | 'delete_workout'
+    | 'clear_all_data'
+    | 'reset_demo_data';
+  payload: any;
+  description: string;
+}
+
 export interface AICoachMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   suggestions?: string[];
+  actionsExecuted?: AIActionExecution[];
   actionPrompt?: {
     label: string;
     actionType: 'start_workout' | 'log_food' | 'view_progress' | 'view_weekly' | 'open_goals';

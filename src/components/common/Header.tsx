@@ -30,13 +30,13 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/10">
-            <span className="font-mono font-bold text-white text-sm tracking-wider">K</span>
+            <span className="font-mono font-bold text-white text-sm tracking-wider">T</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-[#ededed]">KINETIX</span>
+              <span className="font-semibold text-sm tracking-tight text-[#ededed]">THRIVE</span>
               <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-white/50 border border-white/[0.06]">
-                OS v2.4
+                OS v2.5
               </span>
             </div>
             <p className="text-[11px] text-white/40 font-mono hidden sm:block">{formattedDate}</p>
