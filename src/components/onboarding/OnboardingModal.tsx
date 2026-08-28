@@ -83,7 +83,7 @@ export const OnboardingModal: React.FC = () => {
           <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-[#ededed]">Welcome to Thrive OS</h2>
+          <h2 className="text-xl font-bold text-[#ededed]">Welcome to Momentum OS</h2>
           <p className="text-xs text-white/50">
             Let's configure your personal fitness operating system for optimal precision.
           </p>

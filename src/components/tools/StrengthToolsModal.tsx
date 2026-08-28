@@ -468,7 +468,7 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-3.5 border-t border-[#1a1a1a] bg-[#0c0c0c] flex items-center justify-between text-xs text-white/50 font-mono">
-          <span>Thrive Athletic Science Engine</span>
+          <span>Momentum Athletic Science Engine</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-medium transition-colors"

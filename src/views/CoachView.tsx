@@ -72,7 +72,7 @@ export const CoachView: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-[#ededed]">Thrive AI Coach</h2>
+                <h2 className="text-sm font-bold text-[#ededed]">Momentum AI Coach</h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                   GEMINI 2.5 ACTIVE
                 </span>

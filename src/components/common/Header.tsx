@@ -1,6 +1,7 @@
 import React from "react";
 import { Sparkles, Settings, Dumbbell, Utensils, Target, Flame, RotateCcw, Calculator } from "lucide-react";
 import { useFitness } from "../../context/FitnessContext";
+import momentumLogo from "../../assets/images/momentum_logo_1787885888279.jpg";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -28,18 +29,18 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-[#1a1a1a] px-4 md:px-8 py-3.5 flex items-center justify-between transition-all">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/10">
-            <span className="font-mono font-bold text-white text-sm tracking-wider">T</span>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shadow-lg shadow-black/40 flex-shrink-0 bg-[#121212]">
+            <img src={momentumLogo} alt="Momentum Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-[#ededed]">THRIVE</span>
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-white/50 border border-white/[0.06]">
-                OS v2.5
+              <span className="font-extrabold text-sm tracking-widest text-white">MOMENTUM</span>
+              <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                PRO
               </span>
             </div>
-            <p className="text-[11px] text-white/40 font-mono hidden sm:block">{formattedDate}</p>
+            <p className="text-[10px] text-white/50 tracking-wider font-mono">MOVE FORWARD. BECOME MORE.</p>
           </div>
         </div>
       </div>

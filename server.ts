@@ -275,7 +275,7 @@ function generateContextualCoachReply(message: string, userContext: any): { cont
 
     actions.push({
       type: "log_weight",
-      payload: { weight: numWeight, date: dateStr, notes: "Logged via Thrive AI Coach" },
+      payload: { weight: numWeight, date: dateStr, notes: "Logged via Momentum AI Coach" },
       description: `Logged weight: ${numWeight} ${userContext?.unit || "lbs"} for ${dateStr}`,
     });
 
@@ -403,7 +403,7 @@ app.post("/api/ai/coach", async (req: Request, res: Response) => {
   }
 
   try {
-    const systemPrompt = `You are Thrive AI, an elite, science-grounded AI Fitness & Nutrition Operating System and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the Thrive app.
+    const systemPrompt = `You are Momentum AI, an elite, science-grounded AI Fitness & Nutrition Operating System and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the Momentum app.
 
 CORE PHILOSOPHY:
 - "Don't just show the user data. Tell them what to do next, or execute changes directly for them."

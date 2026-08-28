@@ -1,5 +1,5 @@
 {
-  "name": "Thrive — AI Fitness & Nutrition OS",
+  "name": "Momentum — AI Fitness & Nutrition OS",
   "description": "An intelligent personal fitness operating system that turns data into actionable decisions with smart nutrition parsing, progressive workout logging, and an AI coach.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
