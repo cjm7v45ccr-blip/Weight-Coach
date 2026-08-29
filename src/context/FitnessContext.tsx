@@ -29,7 +29,7 @@ import {
   initialWeeklyReview,
 } from "../data/initialData";
 import { aiService } from "../services/aiService";
-import { auth, googleProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged, User } from "../lib/firebase";
+import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from "../lib/firebase";
 
 interface FitnessContextType {
   // User Profile
@@ -170,6 +170,15 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isCloudSynced, setIsCloudSynced] = useState(false);
 
   useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setCurrentUser(result.user);
+          setIsCloudSynced(true);
+        }
+      })
+      .catch((err) => console.error("Redirect result error:", err));
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
@@ -187,9 +196,14 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const result = await signInWithPopup(auth, googleProvider);
       setCurrentUser(result.user);
       setIsCloudSynced(true);
-    } catch (err) {
-      console.error("Google sign in error:", err);
-      throw err;
+    } catch (err: any) {
+      console.warn("Popup blocked or failed, falling back to redirect:", err);
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (redirectErr) {
+        console.error("Google sign in redirect error:", redirectErr);
+        throw redirectErr;
+      }
     }
   };
 
