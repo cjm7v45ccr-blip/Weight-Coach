@@ -138,19 +138,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   Sign Out
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await signInWithGoogle();
-                    } catch (err) {
-                      alert("Google Sign-In popup was blocked or failed. Please try again.");
-                    }
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 self-start sm:self-auto"
-                >
-                  <span>Sign in with Google</span>
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await signInWithGoogle();
+                      } catch (err: any) {
+                        console.error(err);
+                        alert("Mobile/iframe previews restrict Google sign-in popups. Please tap 'Open App in New Tab' below to sign in successfully.");
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <span>Sign in with Google</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.open(window.location.href, '_blank');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <span>Open App in New Tab</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
