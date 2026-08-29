@@ -18,6 +18,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     clearAllData,
     currentUser,
     signInWithGoogle,
+    signInWithEmail,
     signOutUser,
     isCloudSynced,
     exportData,
@@ -25,6 +26,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   } = useFitness();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
   const [name, setName] = useState(userProfile.name);
   const [units, setUnits] = useState(userProfile.preferredUnits);
@@ -142,30 +148,73 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   Sign Out
                 </button>
               ) : (
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await signInWithGoogle();
-                      } catch (err: any) {
-                        console.error(err);
-                        alert(`Google sign-in failed: ${err.message || err.code || "Unknown error"}. Note: In some embedded preview environments or mobile browsers, popups/redirects are restricted by security policies.`);
-                      }
-                    }}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <span>Sign in with Google</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.open(window.location.href, '_blank');
-                    }}
-                    className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <span>Open App in New Tab</span>
-                  </button>
+                <div className="space-y-3 w-full mt-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await signInWithGoogle();
+                        } catch (err: any) {
+                          console.error(err);
+                          alert(`Google sign-in restricted: ${err.message || err.code || "Unauthorized domain"}. Please use Email & Password below for instant sync.`);
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <span>Sign in with Google</span>
+                    </button>
+                  </div>
+
+                  <div className="border-t border-blue-100/60 pt-3">
+                    <p className="text-[11px] font-semibold text-gray-700 mb-2">Or Sync with Email & Password (Recommended for mobile)</p>
+                    {authError && <p className="text-[11px] text-red-600 mb-2 font-medium">{authError}</p>}
+                    <div className="space-y-2">
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                      />
+                      <input
+                        type="password"
+                        placeholder="Password (min 6 chars)"
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                      />
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setIsSignUpMode(!isSignUpMode)}
+                          className="text-[11px] text-blue-600 hover:underline font-semibold"
+                        >
+                          {isSignUpMode ? "Already have an account? Sign In" : "Need an account? Sign Up"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={authLoading || !authEmail || !authPassword}
+                          onClick={async () => {
+                            setAuthError("");
+                            setAuthLoading(true);
+                            try {
+                              await signInWithEmail(authEmail, authPassword, isSignUpMode);
+                              setAuthEmail("");
+                              setAuthPassword("");
+                            } catch (err: any) {
+                              setAuthError(err.message || "Authentication failed");
+                            } finally {
+                              setAuthLoading(false);
+                            }
+                          }}
+                          className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
+                        >
+                          {authLoading ? "Processing..." : isSignUpMode ? "Create Account" : "Sign In"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -29,7 +29,7 @@ import {
   initialWeeklyReview,
 } from "../data/initialData";
 import { aiService } from "../services/aiService";
-import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from "../lib/firebase";
+import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from "../lib/firebase";
 
 interface FitnessContextType {
   // User Profile
@@ -145,6 +145,7 @@ interface FitnessContextType {
   // Auth & Cloud Sync
   currentUser: User | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, pass: string, isSignUp?: boolean) => Promise<void>;
   signOutUser: () => Promise<void>;
   isCloudSynced: boolean;
   exportData: () => void;
@@ -229,6 +230,18 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsCloudSynced(false);
     } catch (err) {
       console.error("Sign out error:", err);
+    }
+  };
+
+  const signInWithEmail = async (email: string, pass: string, isSignUp = false) => {
+    if (isSignUp) {
+      const res = await createUserWithEmailAndPassword(auth, email, pass);
+      setCurrentUser(res.user);
+      setIsCloudSynced(true);
+    } else {
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      setCurrentUser(res.user);
+      setIsCloudSynced(true);
     }
   };
 
@@ -1644,6 +1657,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setActiveTab,
         currentUser,
         signInWithGoogle,
+        signInWithEmail,
         signOutUser,
         isCloudSynced,
         exportData,
