@@ -1,7 +1,6 @@
 import React from "react";
 import { Sparkles, Settings, Dumbbell, Utensils, Target, Flame, RotateCcw, Calculator } from "lucide-react";
 import { useFitness } from "../../context/FitnessContext";
-import momentumLogo from "../../assets/images/momentum_logo_1787885888279.jpg";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -31,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shadow-lg shadow-black/40 flex-shrink-0 bg-[#121212]">
-            <img src={momentumLogo} alt="Momentum Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            <img src="/logo.png" alt="Momentum Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
           <div>
             <div className="flex items-center gap-2">
