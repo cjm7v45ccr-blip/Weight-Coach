@@ -147,6 +147,8 @@ interface FitnessContextType {
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   isCloudSynced: boolean;
+  exportData: () => void;
+  importData: (jsonData: string) => void;
 }
 
 const FitnessContext = createContext<FitnessContextType | undefined>(undefined);
@@ -227,6 +229,70 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsCloudSynced(false);
     } catch (err) {
       console.error("Sign out error:", err);
+    }
+  };
+
+  const exportData = () => {
+    const data = {
+      userProfile,
+      foodEntries,
+      workouts,
+      routines,
+      weightEntries,
+      activityEntries,
+      goals,
+      todayWaterMl,
+      aiMessages,
+      weeklyReviews,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fatbot-backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (jsonData: string) => {
+    try {
+      const parsed = JSON.parse(jsonData);
+      if (parsed.userProfile) {
+        setUserProfileState(parsed.userProfile);
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(parsed.userProfile));
+      }
+      if (parsed.foodEntries) {
+        setFoodEntries(parsed.foodEntries);
+        localStorage.setItem(STORAGE_KEYS.FOOD, JSON.stringify(parsed.foodEntries));
+      }
+      if (parsed.workouts) {
+        setWorkouts(parsed.workouts);
+        localStorage.setItem(STORAGE_KEYS.WORKOUTS, JSON.stringify(parsed.workouts));
+      }
+      if (parsed.routines) {
+        setRoutines(parsed.routines);
+        localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(parsed.routines));
+      }
+      if (parsed.weightEntries) {
+        setWeightEntries(parsed.weightEntries);
+        localStorage.setItem(STORAGE_KEYS.WEIGHT, JSON.stringify(parsed.weightEntries));
+      }
+      if (parsed.activityEntries) {
+        setActivityEntries(parsed.activityEntries);
+        localStorage.setItem(STORAGE_KEYS.ACTIVITY, JSON.stringify(parsed.activityEntries));
+      }
+      if (parsed.goals) {
+        setGoals(parsed.goals);
+        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(parsed.goals));
+      }
+      if (parsed.todayWaterMl !== undefined) {
+        setTodayWaterMl(parsed.todayWaterMl);
+        localStorage.setItem(STORAGE_KEYS.WATER, JSON.stringify(parsed.todayWaterMl));
+      }
+      alert("Data imported successfully!");
+      window.location.reload();
+    } catch (err) {
+      alert("Invalid backup JSON file.");
     }
   };
 
@@ -1580,6 +1646,8 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         signInWithGoogle,
         signOutUser,
         isCloudSynced,
+        exportData,
+        importData,
       }}
     >
       {children}

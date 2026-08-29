@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { X, Settings, RotateCcw, Trash2, Check, User, Target, Flame, Utensils, Sliders } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Settings, RotateCcw, Trash2, Check, User, Target, Flame, Utensils, Sliders, Download, Upload } from "lucide-react";
 import { useFitness } from "../../context/FitnessContext";
 import { PrimaryFitnessGoal } from "../../types";
 import { WeeklyRateSlider } from "../common/WeeklyRateSlider";
@@ -20,7 +20,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     signInWithGoogle,
     signOutUser,
     isCloudSynced,
+    exportData,
+    importData,
   } = useFitness();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(userProfile.name);
   const [units, setUnits] = useState(userProfile.preferredUnits);
@@ -146,7 +150,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         await signInWithGoogle();
                       } catch (err: any) {
                         console.error(err);
-                        alert("Mobile/iframe previews restrict Google sign-in popups. Please tap 'Open App in New Tab' below to sign in successfully.");
+                        alert(`Google sign-in failed: ${err.message || err.code || "Unknown error"}. Note: In some embedded preview environments or mobile browsers, popups/redirects are restricted by security policies.`);
                       }
                     }}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5"
@@ -344,6 +348,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <div className="space-y-3 pt-3 border-t border-gray-100">
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Data Management</h3>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={exportData}
+                className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-100 text-xs font-semibold text-blue-700 flex items-center gap-1.5 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export JSON Backup</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-xs font-semibold text-emerald-700 flex items-center gap-1.5 transition-all"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Import JSON Backup</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      if (event.target?.result) {
+                        importData(event.target.result as string);
+                      }
+                    };
+                    reader.readAsText(file);
+                  }
+                }}
+              />
+
               <button
                 type="button"
                 onClick={handleLoadDemo}
