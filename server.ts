@@ -150,11 +150,21 @@ function heuristicParseFood(text: string) {
 
 // Helper for resilient Gemini content generation with multi-model fallback and graceful retries
 async function callGeminiWithFallback(paramsGenerator: (model: string) => any) {
-  const models = ["gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-flash-latest"];
+  const models = ["gemini-3.7-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
   let lastError: any = null;
 
   for (const model of models) {
     try {
+      if (!genAI && process.env.GEMINI_API_KEY) {
+        genAI = new GoogleGenAI({
+          apiKey: process.env.GEMINI_API_KEY,
+          httpOptions: {
+            headers: {
+              "User-Agent": "aistudio-build",
+            },
+          },
+        });
+      }
       if (!genAI) throw new Error("Gemini client not initialized");
       const params = paramsGenerator(model);
       const response = await genAI.models.generateContent(params);
@@ -350,7 +360,19 @@ function generateContextualCoachReply(message: string, userContext: any): { cont
   }
 
   // Fallback conversational logic
-  if (lower.includes("hungry") || lower.includes("eat") || lower.includes("meal") || lower.includes("food") || lower.includes("snack")) {
+  const now = new Date();
+  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const formattedToday = now.toLocaleDateString('en-US', dateOptions);
+
+  if (lower.includes("name") || lower.includes("who are you") || lower.includes("what are you")) {
+    reply = `I am **Momentum AI**, your dedicated athletic performance, nutrition, and fitness intelligence coach. I'm here to analyze your training, track your nutrition targets, and help you reach your goals.`;
+  } else if (lower.includes("what day") || lower.includes("today's date") || lower.includes("what date") || lower.includes("what time")) {
+    reply = `Today is **${formattedToday}**. Ready to crush today's goals?`;
+  } else if (lower.startsWith("hi") || lower.startsWith("hello") || lower.startsWith("hey") || lower === "yo") {
+    reply = `Hey ${userContext?.name || "there"}! How can I assist you with your fitness, nutrition, or workout plan today?`;
+  } else if (lower.includes("how are you")) {
+    reply = `I'm operating at 100% and ready to help you optimize your training and nutrition. What are we focusing on today?`;
+  } else if (lower.includes("hungry") || lower.includes("eat") || lower.includes("meal") || lower.includes("food") || lower.includes("snack")) {
     if (remainingP > 20) {
       reply = `You currently have **${remainingP}g of protein** and **${remainingCal} kcal** remaining for today. To maximize muscle protein synthesis while staying in your target budget, consider a high-protein option like:\n\n- **Option 1**: 200g Greek yogurt with a scoop of berries (~25g protein, 170 kcal)\n- **Option 2**: 150g grilled chicken breast wrap with light greens (~35g protein, 240 kcal)\n- **Option 3**: Whey protein shake with 1 cup unsweetened almond milk (~25g protein, 140 kcal)\n\n**Next action**: Tell me what you ate or log it directly in the Nutrition tab!`;
     } else {
@@ -367,7 +389,7 @@ function generateContextualCoachReply(message: string, userContext: any): { cont
   } else if (lower.includes("recovery") || lower.includes("sleep") || lower.includes("sore")) {
     reply = `Optimal recovery comes down to three pillars:\n1. **Hydration**: Drink 2.5–3L throughout the day.\n2. **Protein Distribution**: Spread intake across 3-4 meals to maintain steady muscle protein synthesis.\n3. **Sleep**: Aim for 7–9 hours to maximize growth hormone release and nervous system recovery.`;
   } else {
-    reply = `Based on your goal of **${goal}**, you've consumed **${Math.round(userContext?.todayCalories || 0)} / ${userContext?.targetCalories || 2000} kcal** with **${remainingP}g protein remaining**.\n\n${isWorkoutDone ? "Your training for today is in the books! Keep hydration and recovery dialed in." : `Your priority today is completing **${workoutName}** and hitting your daily protein target.`}\n\nYou can ask me questions, or tell me to update your targets, log historical weights, log food, or manage your data anytime.`;
+    reply = `I'm here to help you with your training, nutrition, and body composition goals. Based on your current stats, you have **${remainingP}g protein** and **${remainingCal} kcal** remaining today for **${workoutName}**.\n\nFeel free to ask me anything about your routine, diet, or tell me to update your targets!`;
   }
 
   return {
@@ -375,6 +397,50 @@ function generateContextualCoachReply(message: string, userContext: any): { cont
     actions,
     suggestions: defaultSuggestions,
   };
+}
+
+function formatConversationHistory(history: any[], currentMessage: string) {
+  const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+
+  if (Array.isArray(history)) {
+    // Filter out messages without text
+    const valid = history.filter((m) => m && typeof m.content === "string" && m.content.trim().length > 0);
+    // Take recent messages
+    const slice = valid.slice(-8);
+
+    // Gemini API requires first turn to be 'user'
+    const firstUserIdx = slice.findIndex((m) => m.role === "user");
+    const usableSlice = firstUserIdx !== -1 ? slice.slice(firstUserIdx) : [];
+
+    for (const msg of usableSlice) {
+      const role = msg.role === "assistant" || msg.role === "model" ? "model" : "user";
+      if (contents.length > 0 && contents[contents.length - 1].role === role) {
+        contents[contents.length - 1].parts[0].text += "\n\n" + msg.content;
+      } else {
+        contents.push({
+          role,
+          parts: [{ text: msg.content }],
+        });
+      }
+    }
+  }
+
+  // Append current user message
+  if (contents.length > 0 && contents[contents.length - 1].role === "user") {
+    contents[contents.length - 1].parts[0].text += "\n\n" + currentMessage;
+  } else {
+    contents.push({
+      role: "user",
+      parts: [{ text: currentMessage }],
+    });
+  }
+
+  // Safety fallback
+  if (contents.length === 0 || contents[0].role !== "user") {
+    return [{ role: "user", parts: [{ text: currentMessage }] }];
+  }
+
+  return contents;
 }
 
 // 2. AI Coach Interactive Chat Endpoint
@@ -392,7 +458,7 @@ app.post("/api/ai/coach", async (req: Request, res: Response) => {
     "Log past weight: 173.5 lbs for yesterday",
   ];
 
-  if (!genAI) {
+  if (!genAI && !process.env.GEMINI_API_KEY) {
     const fallback = generateContextualCoachReply(message, userContext);
     return res.json({
       role: "assistant",
@@ -403,14 +469,14 @@ app.post("/api/ai/coach", async (req: Request, res: Response) => {
   }
 
   try {
-    const systemPrompt = `You are Momentum AI, an elite, science-grounded AI Fitness & Nutrition Operating System and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the Momentum app.
+    const systemPrompt = `You are Momentum AI, an intelligent, science-grounded AI Fitness & Nutrition Operating System and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the Momentum app.
 
-CORE PHILOSOPHY:
-- "Don't just show the user data. Tell them what to do next, or execute changes directly for them."
-- Convert data into clear, direct, actionable steps.
-- Maintain a calm, minimalist, highly intelligent, supportive tone.
-- Zero generic fluff. No toxic positivity, no shaming.
-- Support healthy, sustainable habits: NEVER encourage crash diets, extreme restriction (<1200 kcal), purging, or overtraining.
+BEHAVIOR AND CONVERSATION RULES:
+1. ALWAYS directly and naturally answer what the user asks. If the user asks general, identity, or conversational questions (e.g. "What is your name?", "Who made you?", "How are you?"), answer warmly and directly as Momentum AI without ignoring their question.
+2. If the user asks about fitness, nutrition, workout adjustments, form, or food recommendations, provide concise, evidence-based, actionable guidance.
+3. NEVER repeat a generic canned template message when the user asks a specific question.
+4. If the user commands an in-app action (e.g. "Change my calorie target to 2100", "Log 174 lbs for yesterday", "I ate 2 eggs and toast"), execute it via the "actions" array and confirm it in your message.
+5. Tone: Sharp, encouraging, concise, athletic, scientific. No fluff.
 
 FULL USER DATA & LOGS CONTEXT:
 Profile:
@@ -446,9 +512,7 @@ Active Goals:
 - Active Goals: ${JSON.stringify(userContext?.goals || [])}
 
 DIRECT APP CONTROL & ACTION SCHEMA:
-Whenever the user asks you to change, update, log, remove, or modify their information, targets, weight (including PAST dates!), food, goals, or workouts, you MUST include an "actions" array in your JSON output so the app executes the modifications instantly.
-
-Available action types:
+Whenever the user asks you to change, update, log, remove, or modify their information, targets, weight (including PAST dates!), food, goals, or workouts, include an "actions" array in your JSON output:
 1. "update_profile": payload: { name?, age?, currentWeight?, goalWeight?, primaryGoal?, activityLevel?, weeklyWorkoutTarget?, preferredUnits?, dietaryPreferences?: string[], avoidedFoods?: string[] }
 2. "update_targets": payload: { calories?: number, protein?: number, carbs?: number, fat?: number, steps?: number, waterMl?: number }
 3. "log_weight": payload: { weight: number, date?: string (YYYY-MM-DD), notes?: string } (Allows logging weight for past dates!)
@@ -465,7 +529,7 @@ Available action types:
 
 Respond strictly in JSON format with this structure:
 {
-  "content": "Your markdown-formatted coach message explaining advice and confirming any changes made.",
+  "content": "Your markdown response directly answering the user with actionable coaching or action confirmations.",
   "suggestions": ["Follow up suggestion 1", "Follow up suggestion 2"],
   "actions": [
     {
@@ -476,20 +540,11 @@ Respond strictly in JSON format with this structure:
   ]
 }`;
 
-    const contents = [
-      ...conversationHistory.slice(-6).map((m: any) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      })),
-      {
-        role: "user",
-        parts: [{ text: message }],
-      },
-    ];
+    const formattedContents = formatConversationHistory(conversationHistory, message);
 
     const response = await callGeminiWithFallback((model) => ({
       model,
-      contents: contents as any,
+      contents: formattedContents as any,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
@@ -498,16 +553,34 @@ Respond strictly in JSON format with this structure:
 
     let resultJson: any = null;
     try {
-      resultJson = JSON.parse(response.text?.trim() || "{}");
+      let rawText = response.text?.trim() || "";
+      if (rawText.startsWith("```")) {
+        rawText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      }
+      resultJson = JSON.parse(rawText || "{}");
     } catch {
-      resultJson = { content: response.text || generateContextualCoachReply(message, userContext).content };
+      // If direct parsing fails, try regex extraction
+      const match = response.text?.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          resultJson = JSON.parse(match[0]);
+        } catch {
+          resultJson = null;
+        }
+      }
     }
+
+    if (!resultJson || typeof resultJson !== "object") {
+      resultJson = { content: response.text?.trim() || generateContextualCoachReply(message, userContext).content };
+    }
+
+    const finalContent = resultJson.content || response.text?.trim() || generateContextualCoachReply(message, userContext).content;
 
     return res.json({
       role: "assistant",
-      content: resultJson.content || generateContextualCoachReply(message, userContext).content,
-      suggestions: resultJson.suggestions || defaultSuggestions,
-      actions: resultJson.actions || [],
+      content: finalContent,
+      suggestions: Array.isArray(resultJson.suggestions) && resultJson.suggestions.length > 0 ? resultJson.suggestions : defaultSuggestions,
+      actions: Array.isArray(resultJson.actions) ? resultJson.actions : [],
     });
   } catch (error) {
     console.warn("Gemini Coach Chat encountered temporary API issue, serving contextual response:", error);
