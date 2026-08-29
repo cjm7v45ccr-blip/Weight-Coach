@@ -192,6 +192,19 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const signInWithGoogle = async () => {
+    // Detect mobile or iframe environment where popups are reliably blocked
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      } catch (redirectErr) {
+        console.error("Google sign in redirect error:", redirectErr);
+        throw redirectErr;
+      }
+    }
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       setCurrentUser(result.user);
