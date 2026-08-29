@@ -10,7 +10,6 @@ import { HomeView } from "./views/HomeView";
 import { NutritionView } from "./views/NutritionView";
 import { WorkoutView } from "./views/WorkoutView";
 import { ProgressView } from "./views/ProgressView";
-import { CoachView } from "./views/CoachView";
 
 // Modals
 import { FoodLoggerModal } from "./components/nutrition/FoodLoggerModal";
@@ -30,6 +29,7 @@ const MainAppContent: React.FC = () => {
   // Modal Visibility States
   const [isFoodLoggerOpen, setIsFoodLoggerOpen] = useState(false);
   const [foodLoggerMealType, setFoodLoggerMealType] = useState<MealType>("lunch");
+  const [foodLoggerInitialTab, setFoodLoggerInitialTab] = useState<"camera" | "ai_parser" | "search" | "manual">("camera");
   const [isWorkoutHistoryOpen, setIsWorkoutHistoryOpen] = useState(false);
   const [isNewRoutineOpen, setIsNewRoutineOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -37,13 +37,17 @@ const MainAppContent: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStrengthToolsOpen, setIsStrengthToolsOpen] = useState(false);
 
-  const handleOpenFoodLogger = (mealType: MealType = "lunch") => {
+  const handleOpenFoodLogger = (
+    mealType: MealType = "lunch",
+    tab: "camera" | "ai_parser" | "search" | "manual" = "camera"
+  ) => {
     setFoodLoggerMealType(mealType);
+    setFoodLoggerInitialTab(tab);
     setIsFoodLoggerOpen(true);
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#ededed] flex flex-col font-sans selection:bg-blue-500/20 selection:text-white">
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
       {/* Global Header */}
       <Header
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -64,7 +68,7 @@ const MainAppContent: React.FC = () => {
         />
 
         {/* Dynamic Primary View Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-full">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-full pb-[calc(6rem+env(safe-area-inset-bottom,0px))] lg:pb-8">
           {activeTab === "home" && (
             <HomeView
               onOpenFoodLogger={handleOpenFoodLogger}
@@ -92,12 +96,11 @@ const MainAppContent: React.FC = () => {
             />
           )}
 
-          {activeTab === "coach" && <CoachView />}
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <BottomNav />
+      <BottomNav onOpenQuickAdd={() => handleOpenFoodLogger("lunch", "camera")} />
 
       {/* Global Rest Timer Banner Overlay */}
       <RestTimerBanner />
@@ -107,6 +110,7 @@ const MainAppContent: React.FC = () => {
         isOpen={isFoodLoggerOpen}
         onClose={() => setIsFoodLoggerOpen(false)}
         initialMealType={foodLoggerMealType}
+        initialTab={foodLoggerInitialTab}
       />
 
       <ActiveWorkoutModal />

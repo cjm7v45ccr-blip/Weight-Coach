@@ -1,27 +1,27 @@
 import React, { useState } from "react";
 import {
   UtensilsCrossed,
-  Sparkles,
   Plus,
   Flame,
   Droplets,
   CheckCircle2,
-  AlertTriangle,
-  TrendingUp,
+  Calendar,
+  Camera,
+  Sparkles,
   Search,
-  Sliders,
-  ChevronDown,
-  ChevronUp,
+  Barcode,
+  RotateCcw,
+  Zap,
+  Info,
 } from "lucide-react";
 import { useFitness } from "../context/FitnessContext";
-import { MacroCard } from "../components/common/MacroCard";
 import { MealCard } from "../components/nutrition/MealCard";
-import { ProgressBar } from "../components/common/ProgressBar";
-import { WeeklyRateSlider } from "../components/common/WeeklyRateSlider";
+import { CronometerCalorieSummary } from "../components/nutrition/CronometerCalorieSummary";
+import { CronometerMicros } from "../components/nutrition/CronometerMicros";
 import { MealType } from "../types";
 
 interface NutritionViewProps {
-  onOpenFoodLogger: (mealType?: MealType) => void;
+  onOpenFoodLogger: (mealType?: MealType, tab?: "camera" | "ai_parser" | "search" | "manual") => void;
 }
 
 export const NutritionView: React.FC<NutritionViewProps> = ({ onOpenFoodLogger }) => {
@@ -33,257 +33,222 @@ export const NutritionView: React.FC<NutritionViewProps> = ({ onOpenFoodLogger }
     deleteFoodItem,
     todayWaterMl,
     logWater,
-    updateDailyTargets,
   } = useFitness();
 
-  const [showPaceAdjuster, setShowPaceAdjuster] = useState(true);
-  const [quickInput, setQuickInput] = useState("");
-
-  const handleQuickSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (quickInput.trim()) {
-      onOpenFoodLogger("lunch");
-    }
-  };
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(6); // Today (6 = Sunday or current day)
 
   const breakfastItems = todayFoodEntries.filter((f) => f.mealType === "breakfast");
   const lunchItems = todayFoodEntries.filter((f) => f.mealType === "lunch");
   const dinnerItems = todayFoodEntries.filter((f) => f.mealType === "dinner");
   const snackItems = todayFoodEntries.filter((f) => f.mealType === "snack" || f.mealType === "drink");
 
-  // Calorie & Protein percent
-  const calPercent = Math.min(100, Math.round((todayTotals.calories / userProfile.dailyTargets.calories) * 100));
-  const proPercent = Math.min(100, Math.round((todayTotals.protein / userProfile.dailyTargets.protein) * 100));
+  const targetCal = userProfile.dailyTargets?.calories || 2573;
+  const targetP = userProfile.dailyTargets?.protein || 160;
+
+  // 7-day adherence mock data for the week strip
+  const daysOfWeek = [
+    { day: "Mon", cal: 2450, protein: 155, status: "hit" },
+    { day: "Tue", cal: 2520, protein: 162, status: "hit" },
+    { day: "Wed", cal: 2610, protein: 158, status: "hit" },
+    { day: "Thu", cal: 2480, protein: 165, status: "hit" },
+    { day: "Fri", cal: 2590, protein: 160, status: "hit" },
+    { day: "Sat", cal: 2700, protein: 150, status: "over" },
+    { day: "Today", cal: todayTotals.calories, protein: todayTotals.protein, status: "current" },
+  ];
+
+  const waterGoalMl = 3000;
+  const waterPercent = Math.min(100, Math.round((todayWaterMl / waterGoalMl) * 100));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
-      {/* 1. TOP BANNER / AI MEAL LOG TRIGGER */}
-      <section className="p-5 sm:p-6 rounded-2xl bg-[#0a0a0a] border border-[#1f1f1f]">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1 max-w-xl">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Sparkles className="w-4 h-4" />
-              </span>
-              <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-300 font-semibold">
-                AI FAST LOGGING
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#ededed]">
-              Nutrition & Macro Operating System
-            </h1>
-            <p className="text-xs sm:text-sm text-white/60">
-              Log complex meals in natural language or choose from verified whole food items.
-            </p>
+    <div className="space-y-6 max-w-4xl mx-auto pb-20">
+      {/* 1. Header Hero Banner */}
+      <div className="crono-card p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-gray-200/80 bg-white">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Daily Food Diary & Micros</span>
           </div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Nutrition & Biomarkers
+          </h1>
+          <p className="text-xs text-gray-500">
+            Track macronutrient pacing, caloric balance, and 14+ essential vitamins & electrolytes.
+          </p>
+        </div>
 
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
-            onClick={() => onOpenFoodLogger("lunch")}
-            id="btn-nutrition-open-logger"
-            className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 shrink-0"
+            onClick={() => onOpenFoodLogger("lunch", "camera")}
+            id="btn-nutrition-ai-camera"
+            className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 text-xs font-bold shadow-xs transition-all"
+          >
+            <Camera className="w-4 h-4 text-gray-900" />
+            <span>AI Camera</span>
+          </button>
+          <button
+            onClick={() => onOpenFoodLogger("lunch", "ai_parser")}
+            id="btn-nutrition-ai-voice"
+            className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 text-xs font-bold shadow-xs transition-all"
+          >
+            <Sparkles className="w-4 h-4 text-blue-600" />
+            <span>AI Parser</span>
+          </button>
+          <button
+            onClick={() => onOpenFoodLogger("lunch", "search")}
+            id="btn-nutrition-add-food"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-xs transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Open Fast Food Logger</span>
+            <span>Log Food</span>
           </button>
         </div>
-      </section>
-
-      {/* 2. MACRO PROGRESS OVERVIEW */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MacroCard
-          label="Calories"
-          consumed={todayTotals.calories}
-          target={userProfile.dailyTargets.calories}
-          remaining={remainingMacros.calories}
-          unit=" kcal"
-          color="blue"
-        />
-        <MacroCard
-          label="Protein"
-          consumed={todayTotals.protein}
-          target={userProfile.dailyTargets.protein}
-          remaining={remainingMacros.protein}
-          unit="g"
-          color="emerald"
-        />
-        <MacroCard
-          label="Carbohydrates"
-          consumed={todayTotals.carbs}
-          target={userProfile.dailyTargets.carbs}
-          remaining={remainingMacros.carbs}
-          unit="g"
-          color="amber"
-        />
-        <MacroCard
-          label="Fats"
-          consumed={todayTotals.fat}
-          target={userProfile.dailyTargets.fat}
-          remaining={remainingMacros.fat}
-          unit="g"
-          color="rose"
-        />
       </div>
 
-      {/* 3. WEEKLY RATE OF LOSS & DEFICIT PACE SLIDER */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setShowPaceAdjuster(!showPaceAdjuster)}
-            className="flex items-center gap-2 text-xs font-semibold text-[#ededed] hover:text-white transition-colors"
-          >
-            <Sliders className="w-3.5 h-3.5 text-blue-400" />
-            <span>Weekly Loss Pace & Deficit Adjuster</span>
-            <span className="text-[10px] font-mono text-white/40 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">
-              {showPaceAdjuster ? "Hide Slider" : "Show Slider"}
-            </span>
-            {showPaceAdjuster ? <ChevronUp className="w-3.5 h-3.5 text-white/40" /> : <ChevronDown className="w-3.5 h-3.5 text-white/40" />}
-          </button>
-        </div>
-
-        {showPaceAdjuster && (
-          <WeeklyRateSlider
-            userProfile={userProfile}
-            currentCalories={userProfile.dailyTargets.calories}
-            currentProtein={userProfile.dailyTargets.protein}
-            currentCarbs={userProfile.dailyTargets.carbs}
-            currentFat={userProfile.dailyTargets.fat}
-            currentSteps={userProfile.dailyTargets.steps}
-            currentWaterMl={userProfile.dailyTargets.waterMl}
-            onTargetsChange={(targets) => {
-              updateDailyTargets({
-                calories: targets.calories,
-                protein: targets.protein,
-                carbs: targets.carbs,
-                fat: targets.fat,
-                steps: targets.steps ?? userProfile.dailyTargets.steps,
-                waterMl: targets.waterMl ?? userProfile.dailyTargets.waterMl,
-              });
-            }}
-          />
-        )}
-      </div>
-
-      {/* 4. NUTRITION GUIDANCE INSIGHT */}
-      <div className="p-4 rounded-xl bg-[#0a0a0a] border border-[#1f1f1f] flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-0.5">
-            <UtensilsCrossed className="w-4 h-4" />
+      {/* 2. 7-Day Macro Adherence Ribbon */}
+      <div className="crono-card p-4 border border-gray-200/80 bg-white">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-gray-700" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-900">7-Day Macro Consistency</span>
           </div>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-[#ededed]">
-              {remainingMacros.protein > 25
-                ? `You're ${Math.round(remainingMacros.protein)}g away from your protein target.`
-                : "You've fulfilled your primary protein target for today!"}
-            </p>
-            <p className="text-xs text-white/50 leading-relaxed">
-              {remainingMacros.protein > 25
-                ? "Prioritize a high-protein source (chicken breast, Greek yogurt, or whey isolate) for your next meal."
-                : "Great consistency. Balance remaining calories with healthy complex carbs and vegetables."}
-            </p>
-          </div>
+          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+            6/7 Days on Target
+          </span>
         </div>
 
-        <div className="text-right shrink-0 hidden sm:block">
-          <span className="text-[10px] font-mono uppercase text-white/40 block">Protein Adherence</span>
-          <span className="text-sm font-bold font-mono text-emerald-400">{proPercent}%</span>
+        <div className="grid grid-cols-7 gap-2">
+          {daysOfWeek.map((d, idx) => {
+            const isSelected = selectedDayIndex === idx;
+            return (
+              <button
+                key={d.day}
+                onClick={() => setSelectedDayIndex(idx)}
+                className={`p-2.5 rounded-xl border text-center transition-all ${
+                  isSelected
+                    ? "bg-gray-900 text-white border-gray-900 shadow-xs scale-[1.02]"
+                    : "bg-gray-50/80 hover:bg-gray-100 text-gray-800 border-gray-200/70"
+                }`}
+              >
+                <p className={`text-[10px] font-bold uppercase ${isSelected ? "text-gray-300" : "text-gray-400"}`}>
+                  {d.day}
+                </p>
+                <p className={`text-xs font-bold mt-0.5 ${isSelected ? "text-white" : "text-gray-900"}`}>
+                  {d.cal}
+                </p>
+                <span
+                  className={`inline-block text-[9px] font-semibold px-1.5 py-0.2 rounded-full mt-1 ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : d.status === "hit" || d.status === "current"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {d.protein}g P
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 4. TODAY'S MEAL LOGS */}
+      {/* 3. Energy & Macro Summary Card */}
+      <CronometerCalorieSummary
+        consumed={todayTotals.calories}
+        burned={420}
+        bmr={userProfile.bmr || 1780}
+        targetBudget={targetCal}
+        proteinGrams={todayTotals.protein}
+        carbsGrams={todayTotals.carbs}
+        fatGrams={todayTotals.fat}
+      />
+
+      {/* 4. Meal Diary Groupings */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[#ededed]">Today's Meal Breakdown</h2>
-          <span className="text-xs font-mono text-white/40">
-            {todayFoodEntries.length} total logged items
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed className="w-4 h-4 text-gray-900" />
+            <h2 className="text-base font-bold text-gray-900">Meal Groups</h2>
+          </div>
+          <span className="text-xs text-gray-500 font-medium">
+            {todayFoodEntries.length} logged items today
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MealCard
             mealType="breakfast"
-            title="Breakfast"
             items={breakfastItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("breakfast")}
             onDeleteItem={deleteFoodItem}
           />
           <MealCard
             mealType="lunch"
-            title="Lunch"
             items={lunchItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("lunch")}
             onDeleteItem={deleteFoodItem}
           />
           <MealCard
             mealType="dinner"
-            title="Dinner"
             items={dinnerItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("dinner")}
             onDeleteItem={deleteFoodItem}
           />
           <MealCard
             mealType="snack"
-            title="Snacks & Extras"
             items={snackItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("snack")}
             onDeleteItem={deleteFoodItem}
           />
         </div>
       </div>
 
-      {/* 5. HYDRATION TRACKER BAR */}
-      <div className="p-5 rounded-2xl bg-[#0a0a0a] border border-[#1f1f1f] space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Droplets className="w-4 h-4" />
+      {/* 5. Full Micronutrient Tracking */}
+      <CronometerMicros foodEntries={todayFoodEntries} />
+
+      {/* 6. Hydration Card */}
+      <div className="crono-card p-5 sm:p-6 border border-gray-200/80 bg-white space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+              <Droplets className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-xs font-semibold text-[#ededed]">Daily Hydration Log</h3>
-              <p className="text-[11px] text-white/40">Target: {userProfile.dailyTargets.waterMl} ml / day</p>
+              <h3 className="text-sm font-bold text-gray-900">Daily Hydration Tracker</h3>
+              <p className="text-xs text-gray-500">
+                Logged: <strong className="text-gray-900">{(todayWaterMl / 1000).toFixed(2)} L</strong> of { (waterGoalMl / 1000).toFixed(1) } L goal ({waterPercent}%)
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold font-mono text-cyan-400">{todayWaterMl} ml</span>
-            <span className="text-xs font-mono text-white/40">
-              ({Math.round((todayWaterMl / userProfile.dailyTargets.waterMl) * 100)}%)
-            </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => logWater(250)}
+              className="px-3.5 py-1.5 rounded-full bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold transition-all"
+            >
+              +250 ml (Glass)
+            </button>
+            <button
+              onClick={() => logWater(500)}
+              className="px-3.5 py-1.5 rounded-full bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold transition-all"
+            >
+              +500 ml (Bottle)
+            </button>
+            <button
+              onClick={() => logWater(1000)}
+              className="px-3.5 py-1.5 rounded-full bg-sky-100 hover:bg-sky-200 text-sky-800 text-xs font-bold transition-all"
+            >
+              +1,000 ml
+            </button>
           </div>
         </div>
 
-        <ProgressBar
-          value={todayWaterMl}
-          max={userProfile.dailyTargets.waterMl}
-          color="cyan"
-          size="md"
-        />
-
-        <div className="flex flex-wrap gap-2 pt-2">
-          <button
-            onClick={() => logWater(250)}
-            className="px-3 py-1.5 rounded-lg bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-cyan-500/10 hover:text-cyan-300 text-xs font-mono text-white/70 transition-all"
-          >
-            + 250 ml (Glass)
-          </button>
-          <button
-            onClick={() => logWater(500)}
-            className="px-3 py-1.5 rounded-lg bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-cyan-500/10 hover:text-cyan-300 text-xs font-mono text-white/70 transition-all"
-          >
-            + 500 ml (Bottle)
-          </button>
-          <button
-            onClick={() => logWater(750)}
-            className="px-3 py-1.5 rounded-lg bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-cyan-500/10 hover:text-cyan-300 text-xs font-mono text-white/70 transition-all"
-          >
-            + 750 ml (Shaker)
-          </button>
-          <button
-            onClick={() => logWater(-250)}
-            className="px-3 py-1.5 rounded-lg bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-rose-500/10 hover:text-rose-300 text-xs font-mono text-white/40 transition-all ml-auto"
-          >
-            - 250 ml
-          </button>
+        {/* Water Progress Bar */}
+        <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+          <div
+            className="bg-sky-500 h-full rounded-full transition-all duration-500"
+            style={{ width: `${waterPercent}%` }}
+          />
         </div>
       </div>
     </div>

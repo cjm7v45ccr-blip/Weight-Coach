@@ -29,6 +29,7 @@ import {
   initialWeeklyReview,
 } from "../data/initialData";
 import { aiService } from "../services/aiService";
+import { auth, googleProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged, User } from "../lib/firebase";
 
 interface FitnessContextType {
   // User Profile
@@ -137,8 +138,15 @@ interface FitnessContextType {
   // App Utilities
   resetToDemoData: () => void;
   clearAllData: () => void;
+  clearCoachChat: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+
+  // Auth & Cloud Sync
+  currentUser: User | null;
+  signInWithGoogle: () => Promise<void>;
+  signOutUser: () => Promise<void>;
+  isCloudSynced: boolean;
 }
 
 const FitnessContext = createContext<FitnessContextType | undefined>(undefined);
@@ -158,6 +166,43 @@ const STORAGE_KEYS = {
 };
 
 export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isCloudSynced, setIsCloudSynced] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+        setIsCloudSynced(true);
+      } else {
+        setCurrentUser(null);
+        setIsCloudSynced(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const signInWithGoogle = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      setCurrentUser(result.user);
+      setIsCloudSynced(true);
+    } catch (err) {
+      console.error("Google sign in error:", err);
+      throw err;
+    }
+  };
+
+  const signOutUser = async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      setIsCloudSynced(false);
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
+
   // 1. Core Persistent States with initial fallbacks
   const [userProfile, setUserProfileState] = useState<UserProfile>(() => {
     try {
@@ -1178,6 +1223,10 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEYS.WATER, JSON.stringify(1800));
   }, []);
 
+  const clearCoachChat = useCallback(() => {
+    setAiMessages([]);
+  }, []);
+
   const clearAllData = useCallback(() => {
     const emptyProfile: UserProfile = {
       id: "user-" + Date.now(),
@@ -1497,8 +1546,13 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         personalRecords,
         resetToDemoData,
         clearAllData,
+        clearCoachChat,
         activeTab,
         setActiveTab,
+        currentUser,
+        signInWithGoogle,
+        signOutUser,
+        isCloudSynced,
       }}
     >
       {children}

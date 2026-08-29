@@ -148,17 +148,17 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
   const warmupSets = calculateWarmup(workingWeight);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-2xl bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1a1a1a] bg-[#0c0c0c]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <div className="p-2 rounded-xl bg-amber-100 text-amber-500 border border-amber-200">
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#ededed]">Athletic Strength Utilities</h2>
-              <p className="text-xs text-white/40 font-mono">
+              <h2 className="text-base font-bold text-gray-900">Athletic Strength Utilities</h2>
+              <p className="text-xs text-gray-500">
                 Barbell Plate Math · 1RM Estimator · Warmup Ramp
               </p>
             </div>
@@ -166,20 +166,20 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-black/5 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-[#1a1a1a] bg-[#0a0a0a] px-4 pt-2 gap-2 overflow-x-auto">
+        <div className="flex border-b border-gray-100 bg-gray-50 px-4 pt-2 gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab("plates")}
-            className={`px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
               activeTab === "plates"
-                ? "text-blue-400 border-blue-500 bg-[#0f0f0f]"
-                : "text-white/50 border-transparent hover:text-white/80"
+                ? "text-gray-900 border-gray-200 bg-white shadow-xs"
+                : "text-gray-500 border-transparent hover:text-gray-900"
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -188,10 +188,10 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
 
           <button
             onClick={() => setActiveTab("1rm")}
-            className={`px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
               activeTab === "1rm"
-                ? "text-blue-400 border-blue-500 bg-[#0f0f0f]"
-                : "text-white/50 border-transparent hover:text-white/80"
+                ? "text-gray-900 border-gray-200 bg-white shadow-xs"
+                : "text-gray-500 border-transparent hover:text-gray-900"
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -200,10 +200,10 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
 
           <button
             onClick={() => setActiveTab("warmup")}
-            className={`px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
               activeTab === "warmup"
-                ? "text-blue-400 border-blue-500 bg-[#0f0f0f]"
-                : "text-white/50 border-transparent hover:text-white/80"
+                ? "text-gray-900 border-gray-200 bg-white shadow-xs"
+                : "text-gray-500 border-transparent hover:text-gray-900"
             }`}
           >
             <Flame className="w-3.5 h-3.5" />
@@ -212,13 +212,13 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 bg-white">
           {/* TAB 1: PLATE CALCULATOR */}
           {activeTab === "plates" && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-white/60 block mb-1.5 font-medium">
+                  <label className="text-xs text-gray-900 block mb-1.5 font-semibold">
                     Target Total Weight ({userProfile.preferredUnits})
                   </label>
                   <input
@@ -228,7 +228,7 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                     max="1000"
                     value={targetWeight}
                     onChange={(e) => setTargetWeight(Number(e.target.value) || 45)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-lg font-mono font-bold text-[#ededed] focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-lg font-mono font-bold text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {[135, 185, 225, 275, 315, 365, 405].map((w) => (
@@ -236,10 +236,10 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                         key={w}
                         type="button"
                         onClick={() => setTargetWeight(w)}
-                        className={`px-2 py-1 text-[11px] font-mono rounded border transition-colors ${
+                        className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg border transition-colors ${
                           targetWeight === w
-                            ? "bg-blue-600/20 text-blue-300 border-blue-500/30"
-                            : "bg-[#0f0f0f] text-white/60 border-[#1a1a1a] hover:text-white"
+                            ? "bg-gray-900 text-white border-gray-200"
+                            : "bg-gray-50 text-gray-500 border-gray-100 hover:text-gray-900 hover:bg-white"
                         }`}
                       >
                         {w}
@@ -249,42 +249,42 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-xs text-white/60 block mb-1.5 font-medium">
+                  <label className="text-xs text-gray-900 block mb-1.5 font-semibold">
                     Barbell Weight ({userProfile.preferredUnits})
                   </label>
                   <select
                     value={barWeight}
                     onChange={(e) => setBarWeight(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-sm font-mono text-[#ededed] focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-sm font-medium text-gray-900 focus:outline-none focus:border-gray-200"
                   >
                     <option value={45}>45 lbs (Standard Olympic Bar)</option>
                     <option value={35}>35 lbs (Women's / Multi-Purpose)</option>
                     <option value={25}>25 lbs (Technique / EZ-Curl Bar)</option>
                     <option value={0}>0 lbs (Machine / Smith Carriage)</option>
                   </select>
-                  <p className="text-[11px] text-white/40 font-mono mt-2">
+                  <p className="text-[11px] text-gray-500 font-mono mt-2">
                     Per Side Weight Required:{" "}
-                    <strong className="text-blue-300 font-bold">{plateResult.weightPerSide} {userProfile.preferredUnits}</strong>
+                    <strong className="text-gray-900 font-bold">{plateResult.weightPerSide} {userProfile.preferredUnits}</strong>
                   </p>
                 </div>
               </div>
 
               {/* Visual Barbell Diagram */}
-              <div className="p-5 rounded-2xl bg-[#0f0f0f] border border-[#1a1a1a] space-y-4">
+              <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#ededed] uppercase tracking-wider">
+                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
                     Plates Needed Per Side
                   </span>
-                  <span className="text-xs font-mono text-white/50">
+                  <span className="text-xs font-mono font-bold text-gray-500">
                     Total: {targetWeight} {userProfile.preferredUnits}
                   </span>
                 </div>
 
                 {/* Plates Visual Stack */}
-                <div className="flex items-center gap-2 py-4 px-2 overflow-x-auto border-y border-[#1a1a1a]">
+                <div className="flex items-center gap-2 py-4 px-2 overflow-x-auto border-y border-gray-100 bg-white rounded-xl">
                   {/* Bar Collar */}
-                  <div className="w-4 h-16 bg-zinc-700 rounded-l border border-zinc-500 flex items-center justify-center">
-                    <span className="text-[8px] text-zinc-300 transform -rotate-90">BAR</span>
+                  <div className="w-4 h-16 bg-slate-400 rounded-l border border-slate-500 flex items-center justify-center">
+                    <span className="text-[8px] text-white font-bold transform -rotate-90">BAR</span>
                   </div>
 
                   {/* Loaded Plates */}
@@ -293,20 +293,20 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                       Array.from({ length: p.count }).map((_, cIdx) => (
                         <div
                           key={`${idx}-${cIdx}`}
-                          className={`h-20 w-8 rounded flex flex-col items-center justify-center border text-[11px] font-mono font-bold shadow-md shrink-0 transition-transform ${p.color}`}
+                          className={`h-20 w-8 rounded flex flex-col items-center justify-center border text-[11px] font-mono font-bold shadow-xs shrink-0 transition-transform ${p.color}`}
                         >
                           <span>{p.weight}</span>
                         </div>
                       ))
                     )
                   ) : (
-                    <div className="text-xs text-white/40 py-4 italic">
+                    <div className="text-xs text-gray-400 py-4 italic">
                       Empty Bar (No plates needed per side)
                     </div>
                   )}
 
                   {/* Bar Sleeve */}
-                  <div className="flex-1 h-6 bg-zinc-800 rounded-r border border-zinc-700 min-w-[60px]" />
+                  <div className="flex-1 h-6 bg-slate-300 rounded-r border border-slate-400 min-w-[60px]" />
                 </div>
 
                 {/* Breakdown List */}
@@ -314,12 +314,12 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                   {plateResult.loadedPlates.map((p, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-xl bg-[#0a0a0a] border border-[#1a1a1a] flex items-center justify-between"
+                      className="p-2.5 rounded-xl bg-white border border-gray-100 flex items-center justify-between shadow-xs"
                     >
-                      <span className="text-xs font-medium text-white/80">
+                      <span className="text-xs font-semibold text-gray-900">
                         {p.weight} {userProfile.preferredUnits} Plate
                       </span>
-                      <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                      <span className="text-xs font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200/20">
                         × {p.count}
                       </span>
                     </div>
@@ -334,7 +334,7 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-white/60 block mb-1.5 font-medium">
+                  <label className="text-xs text-gray-900 block mb-1.5 font-semibold">
                     Weight Lifted ({userProfile.preferredUnits})
                   </label>
                   <input
@@ -343,12 +343,12 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                     min="10"
                     value={liftWeight}
                     onChange={(e) => setLiftWeight(Number(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-lg font-mono font-bold text-[#ededed] focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-lg font-mono font-bold text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-white/60 block mb-1.5 font-medium">
+                  <label className="text-xs text-gray-900 block mb-1.5 font-semibold">
                     Reps Completed (Clean Form)
                   </label>
                   <input
@@ -357,51 +357,51 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                     max="15"
                     value={liftReps}
                     onChange={(e) => setLiftReps(Math.min(15, Math.max(1, Number(e.target.value) || 1)))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-lg font-mono font-bold text-[#ededed] focus:outline-none focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-lg font-mono font-bold text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                 </div>
               </div>
 
               {/* 1RM Highlight Card */}
-              <div className="p-5 rounded-2xl bg-[#0f0f0f] border border-[#1a1a1a] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-blue-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
                     ESTIMATED 1-REP MAX
                   </span>
                   <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl sm:text-4xl font-mono font-black text-[#ededed]">
+                    <span className="text-3xl sm:text-4xl font-mono font-black text-gray-900">
                       {oneRM.avg}
                     </span>
-                    <span className="text-sm font-mono text-white/40">{userProfile.preferredUnits}</span>
+                    <span className="text-sm font-mono font-bold text-gray-500">{userProfile.preferredUnits}</span>
                   </div>
-                  <p className="text-xs text-white/40 font-mono mt-1">
+                  <p className="text-xs text-gray-500 font-mono mt-1">
                     Epley: {oneRM.epley} · Brzycki: {oneRM.brzycki} {userProfile.preferredUnits}
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0a0a0a] border border-[#1a1a1a] text-xs font-mono text-white/70 space-y-1">
-                  <div>80% Working Load: <strong className="text-blue-300">{Math.round(oneRM.avg * 0.8)} {userProfile.preferredUnits}</strong> (7-8 reps)</div>
-                  <div>70% Volume Load: <strong className="text-emerald-300">{Math.round(oneRM.avg * 0.7)} {userProfile.preferredUnits}</strong> (10-12 reps)</div>
+                <div className="p-3.5 rounded-xl bg-white border border-gray-100 text-xs font-mono text-gray-900 space-y-1 shadow-xs">
+                  <div>80% Working Load: <strong className="text-amber-500 font-bold">{Math.round(oneRM.avg * 0.8)} {userProfile.preferredUnits}</strong> (7-8 reps)</div>
+                  <div>70% Volume Load: <strong className="text-blue-500 font-bold">{Math.round(oneRM.avg * 0.7)} {userProfile.preferredUnits}</strong> (10-12 reps)</div>
                 </div>
               </div>
 
               {/* Percentage Table */}
               <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wider">
+                <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
                   Training Load Percentages
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {oneRM.percentages.map((p) => (
                     <div
                       key={p.pct}
-                      className="p-3 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] space-y-1"
+                      className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-1 hover:border-gray-200 transition-all"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-blue-400 font-mono">{p.pct}%</span>
-                        <span className="text-[10px] text-white/40">{p.reps}</span>
+                        <span className="text-xs font-bold text-blue-600 font-mono">{p.pct}%</span>
+                        <span className="text-[10px] text-gray-500">{p.reps}</span>
                       </div>
-                      <p className="text-base font-mono font-bold text-[#ededed]">
-                        {p.load} <span className="text-xs font-normal text-white/40">{userProfile.preferredUnits}</span>
+                      <p className="text-base font-mono font-bold text-gray-900">
+                        {p.load} <span className="text-xs font-normal text-gray-500">{userProfile.preferredUnits}</span>
                       </p>
                     </div>
                   ))}
@@ -414,7 +414,7 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
           {activeTab === "warmup" && (
             <div className="space-y-6">
               <div>
-                <label className="text-xs text-white/60 block mb-1.5 font-medium">
+                <label className="text-xs text-gray-900 block mb-1.5 font-semibold">
                   Target Working Set Weight ({userProfile.preferredUnits})
                 </label>
                 <input
@@ -423,12 +423,12 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                   min="45"
                   value={workingWeight}
                   onChange={(e) => setWorkingWeight(Number(e.target.value) || 45)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a] text-lg font-mono font-bold text-[#ededed] focus:outline-none focus:border-blue-500 max-w-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-lg font-mono font-bold text-gray-900 focus:outline-none focus:border-gray-200 max-w-sm"
                 />
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wider">
+                <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
                   Optimal CNS & Muscular Ramp-Up Progression
                 </h4>
 
@@ -438,25 +438,25 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
                       key={idx}
                       className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
                         step.percent === "100%"
-                          ? "bg-blue-600/10 border-blue-500/30 text-white"
-                          : "bg-[#0f0f0f] border-[#1a1a1a]"
+                          ? "bg-gray-100 border-gray-200/30 text-gray-900"
+                          : "bg-gray-50 border-gray-100"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono font-bold text-white/50 w-20">
+                        <span className="text-xs font-mono font-bold text-gray-500 w-20">
                           {step.set}
                         </span>
                         <div>
-                          <p className="text-sm font-mono font-bold text-[#ededed]">
+                          <p className="text-sm font-mono font-bold text-gray-900">
                             {step.weight} {userProfile.preferredUnits} × {step.reps}
                           </p>
-                          <p className="text-[11px] text-white/40 font-mono">{step.note}</p>
+                          <p className="text-[11px] text-gray-500 font-mono">{step.note}</p>
                         </div>
                       </div>
 
                       <div className="text-right">
-                        <span className="text-xs font-mono text-white/50 block">Rest</span>
-                        <span className="text-xs font-mono font-bold text-blue-400">{step.rest}</span>
+                        <span className="text-xs font-mono text-gray-500 block">Rest</span>
+                        <span className="text-xs font-mono font-bold text-amber-500">{step.rest}</span>
                       </div>
                     </div>
                   ))}
@@ -467,11 +467,11 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-[#1a1a1a] bg-[#0c0c0c] flex items-center justify-between text-xs text-white/50 font-mono">
-          <span>Momentum Athletic Science Engine</span>
+        <div className="px-6 py-3.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between text-xs text-gray-500 font-mono">
+          <span>FatBot Strength Engine</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-medium transition-colors"
+            className="px-4 py-1.5 rounded-xl bg-white border border-gray-100 hover:bg-gray-100 text-gray-900 text-xs font-bold transition-colors shadow-xs"
           >
             Close
           </button>

@@ -40,7 +40,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     <div className={`w-full space-y-1.5 ${className}`}>
       {showLabel && (
         <div className="flex justify-between text-xs font-mono">
-          <span className="text-white/60">
+          <span className="text-gray-500">
             {value.toLocaleString()} {unit}
           </span>
           <span className="text-white/40">
@@ -48,7 +48,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           </span>
         </div>
       )}
-      <div className={`w-full bg-[#161616] rounded-full overflow-hidden ${heightStyles[size]}`}>
+      <div className={`w-full bg-gray-100 rounded-full overflow-hidden ${heightStyles[size]}`}>
         <div
           className={`h-full rounded-full transition-all duration-500 ease-out ${colorStyles[color]}`}
           style={{ width: `${percentage}%` }}

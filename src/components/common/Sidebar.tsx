@@ -9,7 +9,6 @@ import {
   History,
   Settings,
   Sparkles,
-  Award,
   Calculator,
 } from "lucide-react";
 import { useFitness } from "../../context/FitnessContext";
@@ -27,45 +26,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenWeeklyReview,
   onOpenStrengthTools,
 }) => {
-  const { activeTab, setActiveTab, userProfile, weeklyWorkoutConsistency, todayTotals } = useFitness();
+  const { activeTab, setActiveTab, userProfile, weeklyWorkoutConsistency } = useFitness();
 
   const navItems = [
-    { id: "home", label: "Home", icon: LayoutDashboard },
-    { id: "nutrition", label: "Nutrition", icon: UtensilsCrossed },
+    { id: "home", label: "Dashboard", icon: LayoutDashboard },
+    { id: "nutrition", label: "Diary & Foods", icon: UtensilsCrossed },
     { id: "workout", label: "Workouts", icon: Dumbbell },
-    { id: "progress", label: "Progress", icon: TrendingUp },
-    { id: "coach", label: "AI Coach", icon: Bot, badge: "AI" },
+    { id: "progress", label: "Trends & Charts", icon: TrendingUp },
   ];
 
   const secondaryItems = [
-    { id: "tools", label: "Strength Tools", icon: Calculator, action: onOpenStrengthTools },
-    { id: "goals", label: "Goals", icon: Target, action: onOpenGoals },
-    { id: "history", label: "History", icon: History, tab: "history" },
-    { id: "review", label: "Weekly Review", icon: Sparkles, action: onOpenWeeklyReview },
+    { id: "tools", label: "Calculators", icon: Calculator, action: onOpenStrengthTools },
+    { id: "goals", label: "Targets & Goals", icon: Target, action: onOpenGoals },
+    { id: "history", label: "Workout History", icon: History, tab: "history" },
+    { id: "review", label: "Weekly Report", icon: Sparkles, action: onOpenWeeklyReview },
   ];
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 border-r border-[#1a1a1a] bg-[#0a0a0a] h-[calc(100vh-57px)] sticky top-[57px] p-4 justify-between select-none">
-      <div className="space-y-6">
-        {/* User Card */}
-        <div className="p-3 rounded-xl bg-[#0f0f0f] border border-[#1f1f1f] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#1c1c1c] border border-white/10 flex items-center justify-center text-[#ededed] font-medium text-sm">
-            {userProfile.name ? userProfile.name.charAt(0).toUpperCase() : "A"}
+    <aside className="hidden lg:flex flex-col w-60 border-r border-gray-100 bg-gray-50 h-[calc(100vh-53px)] sticky top-[53px] p-3 justify-between select-none">
+      <div className="space-y-4">
+        {/* User Profile Summary Card */}
+        <div className="px-3.5 py-3 rounded-2xl bg-white border border-gray-100 shadow-2xs flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-900 flex items-center justify-center font-bold text-sm">
+            {userProfile.name ? userProfile.name.charAt(0).toUpperCase() : "R"}
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-xs font-semibold text-[#ededed] truncate">{userProfile.name || "Alex Rivera"}</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <p className="text-[10px] font-mono text-white/50 truncate capitalize">
-                {userProfile.primaryGoal.replace("_", " ")}
-              </p>
-            </div>
+            <p className="text-xs font-bold text-gray-900 truncate">{userProfile.name || "Remberto Valenzuela"}</p>
+            <p className="text-[11px] text-gray-500 truncate capitalize">
+              {userProfile.primaryGoal.replace("_", " ")}
+            </p>
           </div>
         </div>
 
         {/* Primary Navigation */}
         <div className="space-y-1">
-          <p className="px-3 text-[10px] font-mono uppercase tracking-wider text-white/30 mb-2">Main Menu</p>
+          <p className="px-3 text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1.5">Views</p>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -74,21 +69,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 id={`nav-item-${item.id}`}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isActive
-                    ? "bg-[#161616] text-[#ededed] border border-[#2a2a2a] shadow-sm"
-                    : "text-white/60 hover:text-[#ededed] hover:bg-white/[0.03]"
+                    ? "bg-gray-100 text-gray-900 shadow-xs"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100/70"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className={`w-4 h-4 ${isActive ? "text-blue-400" : "text-white/50"}`} />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                    {item.badge}
-                  </span>
-                )}
+                <Icon className={`w-4 h-4 ${isActive ? "text-gray-900" : "text-gray-500"}`} />
+                <span>{item.label}</span>
               </button>
             );
           })}
@@ -96,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Secondary Modules */}
         <div className="space-y-1">
-          <p className="px-3 text-[10px] font-mono uppercase tracking-wider text-white/30 mb-2">Workspace</p>
+          <p className="px-3 text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1.5">Features</p>
           {secondaryItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.tab;
@@ -108,13 +96,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   if (item.action) item.action();
                   else if (item.tab) setActiveTab(item.tab);
                 }}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                   isActive
-                    ? "bg-[#161616] text-[#ededed] border border-[#2a2a2a]"
-                    : "text-white/50 hover:text-[#ededed] hover:bg-white/[0.03]"
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100/50"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5 text-white/40" />
+                <Icon className="w-3.5 h-3.5 text-gray-400" />
                 <span>{item.label}</span>
               </button>
             );
@@ -122,16 +110,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Bottom Mini Metrics Pill */}
-      <div className="space-y-2 pt-4 border-t border-[#1a1a1a]">
-        <div className="p-3 rounded-xl bg-[#0f0f0f] border border-[#1f1f1f] space-y-2">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-white/50">Weekly Workouts</span>
-            <span className="font-mono text-white/80 font-medium">
-              {weeklyWorkoutConsistency.completed} / {weeklyWorkoutConsistency.target}
+      {/* Bottom Mini Progress Pill */}
+      <div className="space-y-2 pt-3 border-t border-gray-100">
+        <div className="px-3 py-2.5 rounded-xl bg-white border border-gray-100 space-y-1.5 shadow-2xs">
+          <div className="flex items-center justify-between text-[11px] font-medium">
+            <span className="text-gray-500">Weekly Consistency</span>
+            <span className="text-gray-900 font-bold">
+              {weeklyWorkoutConsistency.completed} / {weeklyWorkoutConsistency.target} days
             </span>
           </div>
-          <div className="w-full bg-[#1a1a1a] h-1.5 rounded-full overflow-hidden">
+          <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
             <div
               className="bg-blue-500 h-full rounded-full transition-all duration-500"
               style={{ width: `${weeklyWorkoutConsistency.percent}%` }}
@@ -142,12 +130,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           onClick={onOpenSettings}
           id="btn-sidebar-settings"
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-lg text-xs text-white/50 hover:text-[#ededed] hover:bg-white/[0.03] transition-all"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all font-medium"
         >
-          <Settings className="w-4 h-4 text-white/40" />
-          <span>System Settings</span>
+          <Settings className="w-3.5 h-3.5" />
+          <span>Settings</span>
         </button>
       </div>
     </aside>
   );
 };
+

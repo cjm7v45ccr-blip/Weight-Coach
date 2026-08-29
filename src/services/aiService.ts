@@ -1,4 +1,4 @@
-import { AICoachMessage, DailyFocusItem, NextBestAction, WeeklyReview } from "../types";
+import { AICoachMessage, DailyFocusItem, NextBestAction, WeeklyReview, MicronutrientInfo } from "../types";
 
 export interface ParsedFoodResult {
   items: Array<{
@@ -8,6 +8,7 @@ export interface ParsedFoodResult {
     protein: number;
     carbs: number;
     fat: number;
+    micros?: MicronutrientInfo;
   }>;
   totals: {
     calories: number;
@@ -17,7 +18,38 @@ export interface ParsedFoodResult {
   };
 }
 
+export interface AnalyzedPhotoFoodResult extends ParsedFoodResult {
+  dishSummary?: string;
+}
+
 export const aiService = {
+  // Analyze food photo using Gemini Computer Vision
+  async analyzeFoodPhoto(
+    imageBase64: string,
+    mimeType: string = "image/jpeg",
+    notes?: string
+  ): Promise<AnalyzedPhotoFoodResult> {
+    try {
+      const res = await fetch("/api/ai/analyze-food-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64, mimeType, notes }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (err) {
+      console.warn("Falling back to local photo food parser:", err);
+      return {
+        dishSummary: "Logged Meal from Photo",
+        ...localFallbackParse(notes || "Mixed meal with protein and vegetables"),
+      };
+    }
+  },
+
   // Parse natural language food text e.g. "2 eggs, 3 tbsp longaniza and cheese"
   async parseFood(text: string): Promise<ParsedFoodResult> {
     try {

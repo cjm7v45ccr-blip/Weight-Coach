@@ -1,31 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import {
-  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
   Dumbbell,
+  Sparkles,
   Utensils,
-  ArrowRight,
-  CheckCircle2,
-  Circle,
   Flame,
   Droplets,
   Footprints,
-  TrendingUp,
-  Target,
-  Plus,
-  Zap,
+  Activity,
+  CheckCircle2,
   Calendar,
+  Zap,
+  Camera,
+  Play,
+  ArrowRight,
+  Check,
+  ShieldCheck,
   Award,
-  Calculator,
-  Layers,
-  ChevronRight,
 } from "lucide-react";
 import { useFitness } from "../context/FitnessContext";
-import { MetricCard } from "../components/common/MetricCard";
-import { MacroCard } from "../components/common/MacroCard";
 import { MealCard } from "../components/nutrition/MealCard";
 
 interface HomeViewProps {
-  onOpenFoodLogger: (mealType?: any) => void;
+  onOpenFoodLogger: (mealType?: any, tab?: "camera" | "ai_parser" | "search" | "manual") => void;
   onOpenGoals: () => void;
   onOpenWeeklyReview: () => void;
   onOpenStrengthTools?: () => void;
@@ -39,15 +40,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const {
     userProfile,
-    nextBestAction,
-    dailyFocus,
-    toggleFocusItem,
     todayTotals,
     remainingMacros,
-    todayWorkout,
     todayWorkoutScheduledName,
     isTodayWorkoutCompleted,
     startWorkout,
+    startEmptyWorkout,
     activeWorkout,
     todayFoodEntries,
     deleteFoodItem,
@@ -55,461 +53,704 @@ export const HomeView: React.FC<HomeViewProps> = ({
     todayWaterMl,
     logWater,
     logSteps,
-    weeklyWorkoutConsistency,
-    weightTrendStats,
-    progressiveOverloadAdvice,
     setActiveTab,
+    dailyFocus,
+    toggleFocusItem,
+    nextBestAction,
+    personalRecords,
+    progressiveOverloadAdvice,
   } = useFitness();
 
-  const handleNextActionClick = () => {
-    if (nextBestAction.actionType === "start_workout") {
-      startWorkout();
-    } else if (nextBestAction.actionType === "log_protein") {
-      onOpenFoodLogger("dinner");
-    } else if (nextBestAction.actionType === "active_walk") {
-      logSteps(todayTotals.steps + 2000);
-    } else if (nextBestAction.actionType === "weekly_review") {
-      onOpenWeeklyReview();
-    }
-  };
+  // Sub-tabs
+  const [subTab, setSubTab] = useState<"dashboard" | "charts" | "report" | "snapshots">("dashboard");
 
-  const handleFocusItemAction = (item: any) => {
-    if (item.actionType === "workout") {
-      startWorkout();
-    } else if (item.actionType === "nutrition") {
-      onOpenFoodLogger("lunch");
-    } else if (item.actionType === "activity") {
-      logSteps(todayTotals.steps + 2000);
-    } else {
-      toggleFocusItem(item.id);
-    }
-  };
+  // Date offset simulation (for navigating between days)
+  const [dateOffset, setDateOffset] = useState<number>(0);
 
-  // Quick Macro Fast Adds
-  const handleFastAddStaple = (name: string, cal: number, p: number, c: number, f: number, meal: any = "snack") => {
-    addFoodItem({
-      name,
-      mealType: meal,
-      calories: cal,
-      protein: p,
-      carbs: c,
-      fat: f,
-      servingSize: "1 serving",
-    });
-  };
+  // Accordion open/close states
+  const [isMacrosOpen, setIsMacrosOpen] = useState<boolean>(true);
+  const [isHighlightedOpen, setIsHighlightedOpen] = useState<boolean>(true);
+  const [isScoresOpen, setIsScoresOpen] = useState<boolean>(true);
+  const [isEnergyOpen, setIsEnergyOpen] = useState<boolean>(true);
 
-  // Group food items by meal
+  // Formatted date
+  const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() + dateOffset);
+  const dateLabel =
+    dateOffset === 0
+      ? `Today, ${currentDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+      : currentDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+
+  // Targets
+  const targetCal = userProfile.dailyTargets?.calories || 2573;
+  const targetP = userProfile.dailyTargets?.protein || 160;
+  const targetC = userProfile.dailyTargets?.carbs || 290;
+  const targetF = userProfile.dailyTargets?.fat || 86;
+
+  // Consumed
+  const consumedCal = todayTotals.calories || 0;
+  const consumedP = todayTotals.protein || 0;
+  const consumedC = todayTotals.carbs || 0;
+  const consumedF = todayTotals.fat || 0;
+
+  // Percentages
+  const pPercent = Math.min(100, Math.round((consumedP / (targetP || 1)) * 100));
+  const cPercent = Math.min(100, Math.round((consumedC / (targetC || 1)) * 100));
+  const fPercent = Math.min(100, Math.round((consumedF / (targetF || 1)) * 100));
+  const calPercent = Math.min(100, Math.round((consumedCal / (targetCal || 1)) * 100));
+
+  // Burned & BMR
+  const bmr = userProfile.bmr || 1750;
+  const exerciseBurn = 420;
+  const totalBurned = bmr + exerciseBurn;
+
+  // Meals grouping
   const breakfastItems = todayFoodEntries.filter((f) => f.mealType === "breakfast");
   const lunchItems = todayFoodEntries.filter((f) => f.mealType === "lunch");
   const dinnerItems = todayFoodEntries.filter((f) => f.mealType === "dinner");
   const snackItems = todayFoodEntries.filter((f) => f.mealType === "snack" || f.mealType === "drink");
 
+  // Quick log helper
+  const handleQuickLogProtein = () => {
+    addFoodItem({
+      name: "Quick Protein Boost (Whey)",
+      servingSize: "1 scoop (30g)",
+      calories: 120,
+      protein: 24,
+      carbs: 2,
+      fat: 1.5,
+      mealType: "snack",
+      micros: { calcium: 150, sodium: 70 },
+    });
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
-      {/* 1. ATHLETIC READINESS & SESSION DIRECTOR */}
-      <section className="relative overflow-hidden rounded-2xl bg-[#0a0a0a] border border-[#1f1f1f] p-5 sm:p-6 shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="p-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-mono font-bold tracking-wider uppercase">
-                SESSION DIRECTOR
-              </span>
-              <span className="text-[10px] font-mono text-white/40">
-                Split: <strong className="text-white/80">{todayWorkoutScheduledName}</strong>
-              </span>
-              <span className="text-[10px] font-mono text-white/40">
-                Target: <strong className="text-emerald-400">{userProfile.dailyTargets.calories} kcal</strong> / <strong className="text-blue-400">{userProfile.dailyTargets.protein}g protein</strong>
-              </span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#ededed] leading-tight">
-              {nextBestAction.title}
-            </h1>
-
-            <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              {nextBestAction.subtitle} <span className="text-white/40 font-mono">({nextBestAction.reason})</span>
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {onOpenStrengthTools && (
-              <button
-                onClick={onOpenStrengthTools}
-                className="px-3.5 py-2.5 rounded-xl bg-[#0f0f0f] hover:bg-[#161616] border border-[#1f1f1f] text-xs text-white/80 font-medium transition-all flex items-center gap-1.5"
-                title="Barbell Plate Math & 1RM"
-              >
-                <Calculator className="w-3.5 h-3.5 text-blue-400" />
-                <span>Strength Tools</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleNextActionClick}
-              id="btn-hero-action"
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
-            >
-              <span>{nextBestAction.actionLabel}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+    <div className="space-y-5 max-w-4xl mx-auto pb-20">
+      {/* 1. Sub-Tab Pill Bar & Quick Action Shortcuts */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-x-auto py-1">
+        <div className="flex items-center gap-1.5 p-1 bg-gray-100 rounded-full text-xs font-semibold shrink-0">
+          <button
+            onClick={() => setSubTab("dashboard")}
+            className={`px-4 py-1.5 rounded-full transition-all ${
+              subTab === "dashboard" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => {
+              setSubTab("charts");
+              setActiveTab("progress");
+            }}
+            className={`px-4 py-1.5 rounded-full transition-all ${
+              subTab === "charts" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            Charts & Trends
+          </button>
+          <button
+            onClick={() => {
+              setSubTab("report");
+              onOpenWeeklyReview();
+            }}
+            className={`px-4 py-1.5 rounded-full transition-all ${
+              subTab === "report" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            Weekly Report
+          </button>
+          <button
+            onClick={() => onOpenGoals()}
+            className={`px-4 py-1.5 rounded-full transition-all ${
+              subTab === "snapshots" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            Targets
+          </button>
         </div>
-      </section>
 
-      {/* 2. DAILY PROTOCOL CHECKLIST + TRAINING SESSION SUMMARY */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Daily Protocol Checklist (7 cols) */}
-        <section className="lg:col-span-7 space-y-4">
-          <div className="p-5 rounded-2xl bg-[#0a0a0a] border border-[#1f1f1f] space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-[#ededed] flex items-center gap-2">
-                  <span>Daily Adherence Protocol</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-white/50 border border-[#1a1a1a]">
-                    {dailyFocus.filter((f) => f.completed).length} / {dailyFocus.length} Completed
-                  </span>
-                </h2>
-                <p className="text-xs text-white/40">Real-time target checkpoints for nutrition, training & recovery</p>
-              </div>
+        {/* Action shortcuts */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onOpenFoodLogger("lunch", "camera")}
+            id="btn-scan-meal-hero"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 text-xs font-bold shadow-xs transition-all"
+          >
+            <Camera className="w-4 h-4 text-gray-900" />
+            <span>AI Camera</span>
+          </button>
+          <button
+            onClick={() => onOpenFoodLogger("lunch", "ai_parser")}
+            id="btn-quick-log-hero"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-xs transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Quick Log</span>
+          </button>
+        </div>
+      </div>
 
-              <button
-                onClick={() => setActiveTab("coach")}
-                className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
-              >
-                <span>Coach Advice</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+      {/* 2. AI Next Best Action & Focus Checklist */}
+      <div className="crono-card p-5 sm:p-6 bg-gradient-to-br from-white to-gray-50/80 border border-gray-200/80 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
             </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 block">
+                AI Next Best Action
+              </span>
+              <h2 className="text-base font-bold text-gray-900 leading-tight">
+                {nextBestAction?.title || "Optimize your daily nutrition & volume"}
+              </h2>
+            </div>
+          </div>
 
-            <div className="space-y-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">
+            {nextBestAction?.priority || "High Priority"}
+          </span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-gray-100">
+          <div className="text-xs text-gray-600 space-y-0.5">
+            <p className="font-medium text-gray-900">{nextBestAction?.subtitle}</p>
+            <p className="text-[11px] text-gray-500">{nextBestAction?.reason}</p>
+          </div>
+
+          <button
+            onClick={() => {
+              if (nextBestAction?.actionType === "start_workout") {
+                startWorkout();
+              } else if (nextBestAction?.actionType === "log_weight") {
+                setActiveTab("progress");
+              } else if (nextBestAction?.actionType === "weekly_review") {
+                onOpenWeeklyReview();
+              } else {
+                onOpenFoodLogger("lunch", "ai_parser");
+              }
+            }}
+            id="btn-next-best-action-trigger"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-xs transition-all shrink-0"
+          >
+            <span>{nextBestAction?.actionLabel || "TAKE ACTION"}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Daily Focus Items Pill Bar */}
+        {dailyFocus && dailyFocus.length > 0 && (
+          <div className="pt-2 border-t border-gray-100/80">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Today's Focus Checklist</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {dailyFocus.map((item) => (
                 <div
                   key={item.id}
-                  className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                  onClick={() => toggleFocusItem(item.id)}
+                  className={`p-2.5 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition-all ${
                     item.completed
-                      ? "bg-[#0c0c0c] border-[#161616] opacity-60"
-                      : "bg-[#0f0f0f] border-[#1a1a1a] hover:border-[#2e2e2e]"
+                      ? "bg-emerald-50/60 border-emerald-200/80 text-emerald-900"
+                      : "bg-white border-gray-200 hover:border-gray-300 text-gray-800"
                   }`}
                 >
-                  <div
-                    onClick={() => toggleFocusItem(item.id)}
-                    className="flex items-start gap-3 cursor-pointer select-none flex-1"
-                  >
-                    <button
-                      type="button"
-                      className={`mt-0.5 transition-colors ${
-                        item.completed ? "text-emerald-400" : "text-white/30 hover:text-white/70"
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                        item.completed ? "bg-emerald-600 text-white" : "border border-gray-300 bg-white"
                       }`}
                     >
-                      {item.completed ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : (
-                        <Circle className="w-4 h-4" />
-                      )}
-                    </button>
-                    <div>
-                      <p
-                        className={`text-xs font-medium ${
-                          item.completed ? "text-white/50 line-through" : "text-[#ededed]"
-                        }`}
-                      >
-                        {item.title}
-                      </p>
-                      <p className="text-[11px] text-white/40 mt-0.5">{item.why}</p>
+                      {item.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
+                    <span className={`text-xs font-medium truncate ${item.completed ? "line-through text-gray-500" : ""}`}>
+                      {item.title}
+                    </span>
                   </div>
 
-                  {item.actionLabel && !item.completed && (
-                    <button
-                      onClick={() => handleFocusItemAction(item)}
-                      className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white/80 hover:text-white text-[11px] font-mono transition-all shrink-0 border border-[#1a1a1a]"
-                    >
-                      {item.actionLabel}
-                    </button>
-                  )}
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
+                    {item.category}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Progressive Overload Insight Box */}
-          {progressiveOverloadAdvice.length > 0 && (
-            <div className="p-4 rounded-xl bg-[#0a0a0a] border border-blue-500/20 flex items-start gap-3">
-              <Zap className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-semibold text-blue-300">
-                    Progression Protocol: {progressiveOverloadAdvice[0].exerciseName}
-                  </p>
-                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    OVERLOAD KEY
-                  </span>
-                </div>
-                <p className="text-xs text-white/70 leading-relaxed">
-                  {progressiveOverloadAdvice[0].recommendation}
-                </p>
-              </div>
-            </div>
+      {/* 3. Date Navigation Bar */}
+      <div className="crono-card px-4 py-3 flex items-center justify-between border border-gray-200/80">
+        <button
+          onClick={() => setDateOffset((prev) => prev - 1)}
+          className="p-1.5 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          aria-label="Previous day"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-900" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-gray-900" />
+          <span className="font-bold text-base text-gray-900 tracking-tight">{dateLabel}</span>
+          {dateOffset !== 0 && (
+            <button
+              onClick={() => setDateOffset(0)}
+              className="text-[11px] font-bold text-blue-600 hover:text-blue-700 underline ml-1"
+            >
+              Today
+            </button>
           )}
-        </section>
+        </div>
 
-        {/* Right Column: Training & Habits Snapshot (5 cols) */}
-        <section className="lg:col-span-5 space-y-4">
-          {/* Today's Workout Card */}
-          <div className="p-5 rounded-2xl bg-[#0a0a0a] border border-[#1f1f1f] space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  <Dumbbell className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold text-[#ededed]">Training Session</h3>
-              </div>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                  isTodayWorkoutCompleted
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : activeWorkout
-                    ? "bg-blue-500/20 text-blue-300 animate-pulse border border-blue-500/30"
-                    : "bg-[#0f0f0f] text-white/50 border border-[#1a1a1a]"
-                }`}
-              >
-                {isTodayWorkoutCompleted
-                  ? "COMPLETED"
-                  : activeWorkout
-                  ? "IN PROGRESS"
-                  : "SCHEDULED"}
+        <button
+          onClick={() => setDateOffset((prev) => prev + 1)}
+          className="p-1.5 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          aria-label="Next day"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-900" />
+        </button>
+      </div>
+
+      {/* 4. Scheduled Workout Hero Card */}
+      <div className="crono-card p-5 border border-gray-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center shrink-0">
+            <Dumbbell className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                Scheduled Session
               </span>
-            </div>
-
-            <div>
-              <h4 className="text-base font-bold text-[#ededed]">{todayWorkoutScheduledName}</h4>
-              <p className="text-xs text-white/40 font-mono mt-0.5">
-                Target: 4-5 movements · Strength & Hypertrophy Periodization
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-[#1a1a1a] flex items-center justify-between">
-              <div className="text-xs font-mono text-white/50">
-                Weekly Volume: {weeklyWorkoutConsistency.completed} / {weeklyWorkoutConsistency.target} Sessions
-              </div>
-
-              {activeWorkout ? (
-                <button
-                  onClick={() => startWorkout()}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20"
-                >
-                  Resume Session
-                </button>
-              ) : isTodayWorkoutCompleted ? (
-                <button
-                  onClick={() => startWorkout()}
-                  className="px-3.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white/80 text-xs font-medium border border-[#1a1a1a]"
-                >
-                  Log Extra Session
-                </button>
-              ) : (
-                <button
-                  onClick={() => startWorkout()}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 flex items-center gap-1.5"
-                >
-                  <Dumbbell className="w-3.5 h-3.5" />
-                  <span>Start Session</span>
-                </button>
+              {isTodayWorkoutCompleted && (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Completed
+                </span>
               )}
             </div>
+            <h3 className="text-base font-bold text-gray-900 mt-1">
+              {todayWorkoutScheduledName || "Upper Body Strength & Hypertrophy"}
+            </h3>
+            <p className="text-xs text-gray-500">
+              {isTodayWorkoutCompleted
+                ? "You crushed today's scheduled lifting session. Keep recovery on point!"
+                : "Target 4-5 compound lifts with progressive overload."}
+            </p>
           </div>
+        </div>
 
-          {/* Quick Habits: Steps + Hydration */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Water */}
-            <div className="p-4 rounded-xl bg-[#0a0a0a] border border-[#1f1f1f] space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 text-cyan-400">
-                  <Droplets className="w-3.5 h-3.5" />
-                  <span className="font-mono text-[10px] uppercase">Hydration</span>
-                </div>
-                <span className="font-mono text-white/40 text-[10px]">
-                  {userProfile.dailyTargets.waterMl}ml
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setActiveTab("workout")}
+            className="px-3.5 py-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-semibold transition-all"
+          >
+            View Routine
+          </button>
+          <button
+            onClick={() => (activeWorkout ? startWorkout() : startEmptyWorkout())}
+            id="btn-home-start-workout"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-xs transition-all"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span>{activeWorkout ? "Resume Session" : "Start Workout"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 5. CARD 1: Macronutrient Targets with Quick-Log Actions */}
+      <div className="crono-card overflow-hidden border border-gray-200/80">
+        <div
+          onClick={() => setIsMacrosOpen(!isMacrosOpen)}
+          className="px-5 py-4 flex items-center justify-between cursor-pointer border-b border-gray-100 select-none hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight">
+              Macronutrient Targets
+            </h2>
+            <span className="text-[11px] text-gray-500 font-medium">
+              ({remainingMacros.calories} kcal remaining)
+            </span>
+          </div>
+          <button className="text-gray-500 hover:text-gray-900">
+            {isMacrosOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {isMacrosOpen && (
+          <div className="p-5 space-y-4">
+            {/* Quick Macro Increment Buttons */}
+            <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-gray-100">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Quick Log:</span>
+              <button
+                onClick={handleQuickLogProtein}
+                className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-colors"
+              >
+                +24g Protein (Whey)
+              </button>
+              <button
+                onClick={() => logWater(250)}
+                className="px-3 py-1 rounded-full bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-bold transition-colors"
+              >
+                +250ml Water
+              </button>
+              <button
+                onClick={() => logSteps(todayTotals.steps + 1000)}
+                className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition-colors"
+              >
+                +1,000 Steps
+              </button>
+            </div>
+
+            {/* Energy Row */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-bold text-gray-900">
+                  Energy <span className="font-normal text-gray-500">- {consumedCal.toFixed(0)} / {targetCal.toFixed(0)} kcal</span>
                 </span>
+                <span className="font-bold text-gray-900">{calPercent}%</span>
               </div>
-              <p className="text-lg font-bold font-mono text-[#ededed]">{todayWaterMl} ml</p>
-              <div className="flex gap-1.5 pt-1">
+              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div
+                  className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${calPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Protein Row */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-bold text-gray-900">
+                  Protein <span className="font-normal text-gray-500">- {consumedP.toFixed(1)} / {targetP.toFixed(0)} g</span>
+                </span>
+                <span className="font-bold text-gray-900">{pPercent}%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div
+                  className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${pPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Net Carbs Row */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-bold text-gray-900">
+                  Net Carbs <span className="font-normal text-gray-500">- {consumedC.toFixed(1)} / {targetC.toFixed(0)} g</span>
+                </span>
+                <span className="font-bold text-gray-900">{cPercent}%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div
+                  className="bg-sky-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${cPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Fat Row */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-bold text-gray-900">
+                  Fat <span className="font-normal text-gray-500">- {consumedF.toFixed(1)} / {targetF.toFixed(0)} g</span>
+                </span>
+                <span className="font-bold text-gray-900">{fPercent}%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                <div
+                  className="bg-amber-400 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${fPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 6. CARD 2: Highlighted Targets */}
+      <div className="crono-card overflow-hidden border border-gray-200/80">
+        <div
+          onClick={() => setIsHighlightedOpen(!isHighlightedOpen)}
+          className="px-5 py-4 flex items-center justify-between cursor-pointer border-b border-gray-100 select-none hover:bg-gray-50 transition-colors"
+        >
+          <h2 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight">
+            Highlighted Targets
+          </h2>
+          <button className="text-gray-500 hover:text-gray-900">
+            {isHighlightedOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {isHighlightedOpen && (
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            {/* Left Col 1: Fiber */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Fiber</span>
+                <span className="font-bold text-gray-900">142%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full" style={{ width: "100%" }} />
+              </div>
+            </div>
+
+            {/* Right Col 1: Fat */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Fat</span>
+                <span className="font-bold text-gray-900">71%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-amber-400 h-full rounded-full" style={{ width: "71%" }} />
+              </div>
+            </div>
+
+            {/* Left Col 2: Vitamin C */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Vitamin C</span>
+                <span className="font-bold text-gray-900">101%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full" style={{ width: "100%" }} />
+              </div>
+            </div>
+
+            {/* Right Col 2: Vitamin A */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Vitamin A</span>
+                <span className="font-bold text-gray-900">74%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-amber-500 h-full rounded-full" style={{ width: "74%" }} />
+              </div>
+            </div>
+
+            {/* Left Col 3: B12 */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">B12 (Cobalamin)</span>
+                <span className="font-bold text-gray-900">200%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-purple-500 h-full rounded-full" style={{ width: "100%" }} />
+              </div>
+            </div>
+
+            {/* Right Col 3: Potassium */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Potassium</span>
+                <span className="font-bold text-gray-900">127%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full" style={{ width: "100%" }} />
+              </div>
+            </div>
+
+            {/* Left Col 4: Calcium */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Calcium</span>
+                <span className="font-bold text-gray-900">110%</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full" style={{ width: "100%" }} />
+              </div>
+            </div>
+
+            {/* Right Col 4: Added Sugars */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-900">Added Sugars</span>
+                <span className="text-[11px] font-bold text-gray-500">Low (Safe)</span>
+              </div>
+              <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full" style={{ width: "35%" }} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 7. CARD 3: Nutrition Scores */}
+      <div className="crono-card overflow-hidden border border-gray-200/80">
+        <div
+          onClick={() => setIsScoresOpen(!isScoresOpen)}
+          className="px-5 py-4 flex items-center justify-between cursor-pointer border-b border-gray-100 select-none hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight">
+              Nutrition Scores
+            </h2>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+              Gold Tier
+            </span>
+          </div>
+          <button className="text-gray-500 hover:text-gray-900">
+            {isScoresOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {isScoresOpen && (
+          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
+              <span className="text-[11px] font-medium text-gray-500">All Targets</span>
+              <p className="text-xl font-bold text-blue-600">90%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-blue-600 h-full rounded-full" style={{ width: "90%" }} />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
+              <span className="text-[11px] font-medium text-gray-500">Immune Support</span>
+              <p className="text-xl font-bold text-amber-500">79%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-amber-500 h-full rounded-full" style={{ width: "79%" }} />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
+              <span className="text-[11px] font-medium text-gray-500">Antioxidants</span>
+              <p className="text-xl font-bold text-emerald-600">94%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-emerald-600 h-full rounded-full" style={{ width: "94%" }} />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
+              <span className="text-[11px] font-medium text-gray-500">Bone Health</span>
+              <p className="text-xl font-bold text-amber-500">88%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-amber-500 h-full rounded-full" style={{ width: "88%" }} />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
+              <span className="text-[11px] font-medium text-gray-500">Heart Health</span>
+              <p className="text-xl font-bold text-blue-600">85%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-blue-600 h-full rounded-full" style={{ width: "85%" }} />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
+              <span className="text-[11px] font-medium text-gray-500">Metabolism</span>
+              <p className="text-xl font-bold text-purple-600">92%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-purple-600 h-full rounded-full" style={{ width: "92%" }} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 8. CARD 4: Energy Burned vs Consumed */}
+      <div className="crono-card overflow-hidden border border-gray-200/80">
+        <div
+          onClick={() => setIsEnergyOpen(!isEnergyOpen)}
+          className="px-5 py-4 flex items-center justify-between cursor-pointer border-b border-gray-100 select-none hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-amber-500" />
+            <h2 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight">
+              Energy & Hydration Summary
+            </h2>
+          </div>
+          <button className="text-gray-500 hover:text-gray-900">
+            {isEnergyOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {isEnergyOpen && (
+          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Energy Consumed</span>
+                <span className="font-semibold">{calPercent}%</span>
+              </div>
+              <p className="text-xl font-bold text-gray-900">{consumedCal} <span className="text-xs font-normal text-gray-500">/ {targetCal} kcal</span></p>
+              <p className="text-[11px] text-blue-600 font-medium">{remainingMacros.calories} kcal remaining</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Energy Burned</span>
+                <Activity className="w-3.5 h-3.5 text-amber-500" />
+              </div>
+              <p className="text-xl font-bold text-gray-900">{totalBurned} <span className="text-xs font-normal text-gray-500">kcal</span></p>
+              <p className="text-[11px] text-gray-500">BMR: {bmr} kcal + Active: {exerciseBurn} kcal</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Hydration & Steps</span>
+                <Droplets className="w-3.5 h-3.5 text-sky-500" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-900">{(todayWaterMl / 1000).toFixed(1)} / 3.0 L</span>
                 <button
                   onClick={() => logWater(250)}
-                  className="flex-1 py-1 rounded bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-cyan-500/10 hover:text-cyan-300 text-white/60 text-[10px] font-mono transition-colors"
+                  className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-700 hover:bg-sky-200 text-[10px] font-bold"
                 >
                   +250ml
                 </button>
-                <button
-                  onClick={() => logWater(500)}
-                  className="flex-1 py-1 rounded bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-cyan-500/10 hover:text-cyan-300 text-white/60 text-[10px] font-mono transition-colors"
-                >
-                  +500ml
-                </button>
               </div>
-            </div>
-
-            {/* Steps */}
-            <div className="p-4 rounded-xl bg-[#0a0a0a] border border-[#1f1f1f] space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-400">
-                  <Footprints className="w-3.5 h-3.5" />
-                  <span className="font-mono text-[10px] uppercase">Activity</span>
-                </div>
-                <span className="font-mono text-white/40 text-[10px]">
-                  {userProfile.dailyTargets.steps.toLocaleString()}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs font-bold text-gray-900 flex items-center gap-1">
+                  <Footprints className="w-3.5 h-3.5 text-gray-700" /> {todayTotals.steps.toLocaleString()} steps
                 </span>
-              </div>
-              <p className="text-lg font-bold font-mono text-[#ededed]">
-                {todayTotals.steps.toLocaleString()}
-              </p>
-              <div className="flex gap-1.5 pt-1">
                 <button
                   onClick={() => logSteps(todayTotals.steps + 1000)}
-                  className="w-full py-1 rounded bg-[#0f0f0f] border border-[#1a1a1a] hover:bg-emerald-500/10 hover:text-emerald-300 text-white/60 text-[10px] font-mono transition-colors"
+                  className="px-2.5 py-0.5 rounded-full bg-gray-200 text-gray-900 hover:bg-gray-300 text-[10px] font-bold"
                 >
-                  +1,000 Steps
+                  +1,000
                 </button>
               </div>
             </div>
           </div>
-        </section>
+        )}
       </div>
 
-      {/* 3. NUTRITION & MACRO TARGETS ROW */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[#ededed]">Macronutrient Energy Balance</h2>
-            <p className="text-xs text-white/40 font-mono">
-              {todayTotals.calories} kcal consumed · {remainingMacros.calories} kcal remaining budget
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onOpenFoodLogger("lunch")}
-              id="btn-home-log-food"
-              className="px-3.5 py-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-300 border border-emerald-500/20 text-xs font-medium flex items-center gap-1.5 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Natural Language Food Log</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 1-Tap Quick Staples Toolbar */}
-        <div className="p-3 rounded-xl bg-[#0a0a0a] border border-[#1a1a1a] flex items-center gap-2 overflow-x-auto">
-          <span className="text-[10px] font-mono uppercase text-white/40 shrink-0 mr-1">
-            Fast Add:
-          </span>
+      {/* 9. Daily Diary & Training Summary */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-base font-bold text-gray-900">Today's Food Diary</h2>
           <button
-            onClick={() => handleFastAddStaple("Whey Protein Shake", 130, 25, 3, 1.5, "snack")}
-            className="px-2.5 py-1 rounded-lg bg-[#0f0f0f] hover:bg-blue-600/20 hover:text-blue-300 hover:border-blue-500/30 border border-[#1a1a1a] text-white/70 text-[11px] font-mono transition-all shrink-0"
+            onClick={() => setActiveTab("nutrition")}
+            className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
           >
-            + Whey Shake (25g P)
+            <span>View Full Diary</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={() => handleFastAddStaple("2 Boiled Eggs", 140, 12, 1, 10, "breakfast")}
-            className="px-2.5 py-1 rounded-lg bg-[#0f0f0f] hover:bg-emerald-600/20 hover:text-emerald-300 hover:border-emerald-500/30 border border-[#1a1a1a] text-white/70 text-[11px] font-mono transition-all shrink-0"
-          >
-            + 2 Eggs (12g P)
-          </button>
-          <button
-            onClick={() => handleFastAddStaple("200g Grilled Chicken Breast", 220, 46, 0, 4, "lunch")}
-            className="px-2.5 py-1 rounded-lg bg-[#0f0f0f] hover:bg-emerald-600/20 hover:text-emerald-300 hover:border-emerald-500/30 border border-[#1a1a1a] text-white/70 text-[11px] font-mono transition-all shrink-0"
-          >
-            + 200g Chicken (46g P)
-          </button>
-          <button
-            onClick={() => handleFastAddStaple("1 Cup Greek Yogurt (0% Fat)", 130, 22, 8, 0, "snack")}
-            className="px-2.5 py-1 rounded-lg bg-[#0f0f0f] hover:bg-blue-600/20 hover:text-blue-300 hover:border-blue-500/30 border border-[#1a1a1a] text-white/70 text-[11px] font-mono transition-all shrink-0"
-          >
-            + Greek Yogurt (22g P)
-          </button>
-          <button
-            onClick={() => handleFastAddStaple("1 Medium Banana", 105, 1.3, 27, 0.3, "snack")}
-            className="px-2.5 py-1 rounded-lg bg-[#0f0f0f] hover:bg-amber-600/20 hover:text-amber-300 hover:border-amber-500/30 border border-[#1a1a1a] text-white/70 text-[11px] font-mono transition-all shrink-0"
-          >
-            + Banana (27g C)
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <MacroCard
-            label="Calories"
-            consumed={todayTotals.calories}
-            target={userProfile.dailyTargets.calories}
-            remaining={remainingMacros.calories}
-            unit=" kcal"
-            color="blue"
-          />
-          <MacroCard
-            label="Protein"
-            consumed={todayTotals.protein}
-            target={userProfile.dailyTargets.protein}
-            remaining={remainingMacros.protein}
-            unit="g"
-            color="emerald"
-          />
-          <MacroCard
-            label="Carbohydrates"
-            consumed={todayTotals.carbs}
-            target={userProfile.dailyTargets.carbs}
-            remaining={remainingMacros.carbs}
-            unit="g"
-            color="amber"
-          />
-          <MacroCard
-            label="Fats"
-            consumed={todayTotals.fat}
-            target={userProfile.dailyTargets.fat}
-            remaining={remainingMacros.fat}
-            unit="g"
-            color="rose"
-          />
-        </div>
-      </section>
-
-      {/* 4. TODAY'S MEAL LOGS BREAKDOWN */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-mono uppercase tracking-wider text-white/40">Today's Meal Records</h3>
-          <span className="text-xs font-mono text-white/40">
-            {todayFoodEntries.length} items logged
-          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MealCard
             mealType="breakfast"
-            title="Breakfast"
             items={breakfastItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("breakfast")}
             onDeleteItem={deleteFoodItem}
           />
           <MealCard
             mealType="lunch"
-            title="Lunch"
             items={lunchItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("lunch")}
             onDeleteItem={deleteFoodItem}
           />
           <MealCard
             mealType="dinner"
-            title="Dinner"
             items={dinnerItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("dinner")}
             onDeleteItem={deleteFoodItem}
           />
           <MealCard
             mealType="snack"
-            title="Snacks & Supplements"
             items={snackItems}
-            onAddFood={onOpenFoodLogger}
+            onAddItem={() => onOpenFoodLogger("snack")}
             onDeleteItem={deleteFoodItem}
           />
         </div>
-      </section>
+      </div>
     </div>
   );
 };

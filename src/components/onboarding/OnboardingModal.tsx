@@ -76,71 +76,71 @@ export const OnboardingModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-in">
-      <div className="relative w-full max-w-lg bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 sm:p-8 space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-lg bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden flex flex-col p-6 sm:p-8 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center mx-auto shadow-sm shadow-[#FF6B4A]/30">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-[#ededed]">Welcome to Momentum OS</h2>
-          <p className="text-xs text-white/50">
-            Let's configure your personal fitness operating system for optimal precision.
+          <h2 className="text-xl font-bold text-gray-900">Welcome to FatBot</h2>
+          <p className="text-xs text-gray-500">
+            Let's configure your smart nutrition targets and fitness parameters for precision tracking.
           </p>
         </div>
 
         {/* Step Progress Indicators */}
         <div className="flex items-center justify-center gap-2">
-          <div className={`w-8 h-1.5 rounded-full ${step >= 1 ? "bg-blue-500" : "bg-white/10"}`} />
-          <div className={`w-8 h-1.5 rounded-full ${step >= 2 ? "bg-blue-500" : "bg-white/10"}`} />
+          <div className={`w-8 h-1.5 rounded-full ${step >= 1 ? "bg-white" : "bg-gray-200"}`} />
+          <div className={`w-8 h-1.5 rounded-full ${step >= 2 ? "bg-white" : "bg-gray-200"}`} />
         </div>
 
         {/* STEP 1: Basic Info & Goals */}
         {step === 1 && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="text-xs text-white/70 block mb-1">Your Name</label>
+              <label className="text-xs font-semibold text-gray-900 block mb-1">Your Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Alex"
-                className="w-full px-3.5 py-2 rounded-xl bg-[#0f0f0f] border border-[#1f1f1f] text-sm text-[#ededed] focus:outline-none focus:border-blue-500"
+                className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-900 font-medium focus:outline-none focus:border-gray-200"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-white/70 block mb-1">Current Weight</label>
+                <label className="text-xs font-semibold text-gray-900 block mb-1">Current Weight</label>
                 <input
                   type="number"
                   value={currentWeight}
                   onChange={(e) => setCurrentWeight(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#0f0f0f] border border-[#1f1f1f] text-sm font-mono text-[#ededed] focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-gray-200"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-white/70 block mb-1">Goal Weight</label>
+                <label className="text-xs font-semibold text-gray-900 block mb-1">Goal Weight</label>
                 <input
                   type="number"
                   value={goalWeight}
                   onChange={(e) => setGoalWeight(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#0f0f0f] border border-[#1f1f1f] text-sm font-mono text-[#ededed] focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-sm font-mono font-bold text-gray-900 focus:outline-none focus:border-gray-200"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-white/70 block mb-1">Units</label>
+              <label className="text-xs font-semibold text-gray-900 block mb-1">Units</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setUnits("lbs")}
-                  className={`py-2 rounded-xl text-xs font-mono border transition-all ${
+                  className={`py-2 rounded-xl text-xs font-mono font-bold border transition-all ${
                     units === "lbs"
-                      ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
-                      : "bg-[#0f0f0f] border-[#1f1f1f] text-white/50"
+                      ? "bg-white border-gray-200 text-gray-900 shadow-xs"
+                      : "bg-gray-50 border-gray-100 text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   Pounds (lbs)
@@ -148,10 +148,10 @@ export const OnboardingModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setUnits("kg")}
-                  className={`py-2 rounded-xl text-xs font-mono border transition-all ${
+                  className={`py-2 rounded-xl text-xs font-mono font-bold border transition-all ${
                     units === "kg"
-                      ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
-                      : "bg-[#0f0f0f] border-[#1f1f1f] text-white/50"
+                      ? "bg-white border-gray-200 text-gray-900 shadow-xs"
+                      : "bg-gray-50 border-gray-100 text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   Kilograms (kg)
@@ -162,7 +162,7 @@ export const OnboardingModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-sm shadow-[#FF6B4A]/25 transition-all flex items-center justify-center gap-2"
             >
               <span>Continue</span>
               <ArrowRight className="w-4 h-4" />
@@ -174,7 +174,7 @@ export const OnboardingModal: React.FC = () => {
         {step === 2 && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="text-xs text-white/70 block mb-1.5">Primary Fitness Objective</label>
+              <label className="text-xs font-semibold text-gray-900 block mb-1.5">Primary Fitness Objective</label>
               <div className="space-y-2">
                 {[
                   { id: "lose_fat", label: "Fat Loss & Muscle Retention", desc: "Calorie deficit with high protein priority" },
@@ -187,19 +187,19 @@ export const OnboardingModal: React.FC = () => {
                     onClick={() => setPrimaryGoal(item.id as PrimaryFitnessGoal)}
                     className={`p-3 rounded-xl border cursor-pointer transition-all ${
                       primaryGoal === item.id
-                        ? "bg-blue-600/20 border-blue-500/50 text-[#ededed]"
-                        : "bg-[#0f0f0f] border-[#1f1f1f] text-white/60 hover:border-[#2e2e2e]"
+                        ? "bg-gray-100 border-gray-200 text-gray-900 shadow-xs"
+                        : "bg-gray-50 border-gray-100 text-gray-500 hover:border-gray-200"
                     }`}
                   >
-                    <p className="text-xs font-semibold">{item.label}</p>
-                    <p className="text-[11px] text-white/40 mt-0.5">{item.desc}</p>
+                    <p className="text-xs font-bold text-gray-900">{item.label}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{item.desc}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-white/70 block mb-1">
+              <label className="text-xs font-semibold text-gray-900 block mb-1">
                 Planned Workouts Per Week ({weeklyWorkouts} sessions)
               </label>
               <input
@@ -208,7 +208,7 @@ export const OnboardingModal: React.FC = () => {
                 max="6"
                 value={weeklyWorkouts}
                 onChange={(e) => setWeeklyWorkouts(Number(e.target.value))}
-                className="w-full accent-blue-500"
+                className="w-full accent-[#00C1D4]"
               />
             </div>
 
@@ -216,14 +216,14 @@ export const OnboardingModal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2.5 rounded-xl bg-white/[0.04] text-xs text-white/60"
+                className="px-4 py-2.5 rounded-xl bg-white border border-gray-100 text-xs font-bold text-gray-500 hover:text-gray-900"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleFinish}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-sm shadow-[#2EC47D]/25 transition-all flex items-center justify-center gap-2"
               >
                 <Check className="w-4 h-4" />
                 <span>Initialize My Plan</span>

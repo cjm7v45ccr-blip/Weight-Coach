@@ -1,6 +1,7 @@
 {
-  "name": "Momentum — AI Fitness & Nutrition OS",
-  "description": "An intelligent personal fitness operating system that turns data into actionable decisions with smart nutrition parsing, progressive workout logging, and an AI coach.",
-  "requestFramePermissions": [],
+  "name": "FatBot",
+  "description": "An intelligent fitness and nutrition bot combining smart macro tracking, body composition analytics, progressive workout logging, and real-time AI coaching.",
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+

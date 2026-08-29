@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   X,
   Sparkles,
@@ -7,42 +7,111 @@ import {
   Utensils,
   Check,
   Loader2,
+  Camera,
+  Upload,
+  RefreshCw,
   Trash2,
-  Edit2,
-  Flame,
-  Layers,
+  Image as ImageIcon,
+  AlertCircle,
+  Eye,
+  SwitchCamera,
+  Info,
 } from "lucide-react";
-import { MealType, FoodItem } from "../../types";
+import { MealType } from "../../types";
 import { useFitness } from "../../context/FitnessContext";
 import { commonFoodDatabase } from "../../data/initialData";
-import { aiService, ParsedFoodResult } from "../../services/aiService";
+import { aiService, ParsedFoodResult, AnalyzedPhotoFoodResult } from "../../services/aiService";
 
 interface FoodLoggerModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMealType?: MealType;
+  initialTab?: "camera" | "ai_parser" | "search" | "manual";
 }
 
 export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
   isOpen,
   onClose,
   initialMealType = "lunch",
+  initialTab = "camera",
 }) => {
   const { addFoodItem, addFoodItems } = useFitness();
-  const [activeTab, setActiveTab] = useState<"ai_parser" | "search" | "manual">("ai_parser");
+  const [activeTab, setActiveTab] = useState<"camera" | "ai_parser" | "search" | "manual">(initialTab);
   const [mealType, setMealType] = useState<MealType>(initialMealType);
 
-  // AI Fast Natural Language State
+  // -------------------------------------------------------------
+  // Camera & Image Vision State
+  // -------------------------------------------------------------
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"environment" | "user">("environment");
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [photoNotes, setPhotoNotes] = useState<string>("");
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState<boolean>(false);
+  const [photoAnalysisResult, setPhotoAnalysisResult] = useState<AnalyzedPhotoFoodResult | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Helper to downscale and compress images to max 1280px to guarantee fast upload and mobile stability
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // -------------------------------------------------------------
+  // Natural Language AI Parser State
+  // -------------------------------------------------------------
   const [nlpInput, setNlpInput] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [parsedResult, setParsedResult] = useState<ParsedFoodResult | null>(null);
 
-  // Search Food Database State
+  // -------------------------------------------------------------
+  // Search Database State
+  // -------------------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDbItem, setSelectedDbItem] = useState<any | null>(null);
   const [servingMultiplier, setServingMultiplier] = useState(1);
 
-  // Manual Entry Form State
+  // -------------------------------------------------------------
+  // Manual Entry State
+  // -------------------------------------------------------------
   const [manualName, setManualName] = useState("");
   const [manualServing, setManualServing] = useState("1 serving");
   const [manualCalories, setManualCalories] = useState("");
@@ -50,17 +119,188 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
   const [manualCarbs, setManualCarbs] = useState("");
   const [manualFat, setManualFat] = useState("");
 
-  if (!isOpen) return null;
+  // Sync initial tab & meal type on open
+  useEffect(() => {
+    if (isOpen) {
+      setMealType(initialMealType);
+      setActiveTab(initialTab);
+      setCameraError(null);
+    } else {
+      stopCamera();
+    }
+  }, [isOpen, initialMealType, initialTab]);
 
-  const mealOptions: { id: MealType; label: string }[] = [
-    { id: "breakfast", label: "Breakfast" },
-    { id: "lunch", label: "Lunch" },
-    { id: "dinner", label: "Dinner" },
-    { id: "snack", label: "Snack" },
-    { id: "drink", label: "Drink" },
-  ];
+  // Clean up camera stream on unmount or tab switch
+  useEffect(() => {
+    if (activeTab !== "camera") {
+      stopCamera();
+    }
+  }, [activeTab]);
 
-  // Handle Natural Language Parse
+  // Start live camera stream
+  const startCamera = async () => {
+    setCameraError(null);
+    stopCamera();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError("Camera access is not supported by your browser or environment. You can still upload meal photos directly below.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: cameraFacingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (err: any) {
+      console.warn("Camera access failed:", err);
+      setCameraActive(false);
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setCameraError("Camera permission was denied. Please allow camera access or upload an image file.");
+      } else {
+        setCameraError("Unable to access camera. Please choose an image file from your device below.");
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const toggleCameraFacing = () => {
+    const nextMode = cameraFacingMode === "environment" ? "user" : "environment";
+    setCameraFacingMode(nextMode);
+    if (cameraActive) {
+      setTimeout(() => startCamera(), 100);
+    }
+  };
+
+  // Capture frame from video stream to base64
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    setCapturedImage(dataUrl);
+    stopCamera();
+    handleAnalyzeImage(dataUrl, photoNotes);
+  };
+
+  // Handle photo file selection / drag-and-drop with auto compression
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsAnalyzingPhoto(true);
+      const compressedDataUrl = await compressImageFile(file);
+      setCapturedImage(compressedDataUrl);
+      stopCamera();
+      handleAnalyzeImage(compressedDataUrl, photoNotes);
+    } catch (err) {
+      console.error("Failed to process image:", err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setCapturedImage(dataUrl);
+        stopCamera();
+        handleAnalyzeImage(dataUrl, photoNotes);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      // Reset input value so user can re-select the same image or snap again
+      e.target.value = "";
+    }
+  };
+
+  // Trigger Gemini AI image analysis
+  const handleAnalyzeImage = async (imageSrc: string, notes?: string) => {
+    setIsAnalyzingPhoto(true);
+    setPhotoAnalysisResult(null);
+
+    try {
+      const result = await aiService.analyzeFoodPhoto(imageSrc, "image/jpeg", notes);
+      setPhotoAnalysisResult(result);
+    } catch (err) {
+      console.error("AI Photo analysis error:", err);
+    } finally {
+      setIsAnalyzingPhoto(false);
+    }
+  };
+
+  // Remove individual item from photo parsed items
+  const handleRemovePhotoItem = (index: number) => {
+    if (!photoAnalysisResult) return;
+    const updatedItems = photoAnalysisResult.items.filter((_, i) => i !== index);
+    const updatedTotals = updatedItems.reduce(
+      (acc, item) => ({
+        calories: acc.calories + item.calories,
+        protein: Math.round((acc.protein + item.protein) * 10) / 10,
+        carbs: Math.round((acc.carbs + item.carbs) * 10) / 10,
+        fat: Math.round((acc.fat + item.fat) * 10) / 10,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+
+    setPhotoAnalysisResult({
+      ...photoAnalysisResult,
+      items: updatedItems,
+      totals: updatedTotals,
+    });
+  };
+
+  // Commit Photo Items to Food Diary
+  const handleCommitPhotoItems = () => {
+    if (!photoAnalysisResult || photoAnalysisResult.items.length === 0) return;
+    const itemsToAdd = photoAnalysisResult.items.map((item) => ({
+      name: item.name,
+      mealType,
+      calories: item.calories,
+      protein: item.protein,
+      carbs: item.carbs,
+      fat: item.fat,
+      servingSize: item.serving || "1 serving",
+      timestamp: new Date().toISOString(),
+      micros: item.micros,
+    }));
+
+    addFoodItems(itemsToAdd);
+    onClose();
+    resetPhotoState();
+  };
+
+  const resetPhotoState = () => {
+    setCapturedImage(null);
+    setPhotoAnalysisResult(null);
+    setPhotoNotes("");
+    setIsAnalyzingPhoto(false);
+    stopCamera();
+  };
+
+  // -------------------------------------------------------------
+  // NLP Parser Handlers
+  // -------------------------------------------------------------
   const handleParseNlp = async () => {
     if (!nlpInput.trim()) return;
     setIsParsing(true);
@@ -74,7 +314,6 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
     }
   };
 
-  // Commit Parsed Items to Nutrition Log
   const handleCommitParsed = () => {
     if (!parsedResult || parsedResult.items.length === 0) return;
     const itemsToAdd = parsedResult.items.map((item) => ({
@@ -86,31 +325,24 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
       fat: item.fat,
       servingSize: item.serving || "1 serving",
       timestamp: new Date().toISOString(),
+      micros: item.micros,
     }));
 
     addFoodItems(itemsToAdd);
     onClose();
-    // Reset state
     setNlpInput("");
     setParsedResult(null);
   };
 
-  // Quick preset examples
-  const examplePrompts = [
-    "2 eggs, 3 tbsp longaniza and cheese",
-    "200g grilled chicken breast, 1.5 cup jasmine rice and steamed broccoli",
-    "1 scoop whey protein, 1 banana and 2 tbsp peanut butter",
-    "8 oz ribeye steak with baked sweet potato and asparagus",
-  ];
-
-  // Filtered Food Database items
+  // -------------------------------------------------------------
+  // DB & Manual Handlers
+  // -------------------------------------------------------------
   const filteredDbFoods = commonFoodDatabase.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Commit DB Item
   const handleCommitDbItem = (item: any) => {
     const qty = Number(servingMultiplier) || 1;
     addFoodItem({
@@ -124,11 +356,9 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
       timestamp: new Date().toISOString(),
     });
     onClose();
-    setSelectedDbItem(null);
     setSearchQuery("");
   };
 
-  // Commit Manual Entry
   const handleCommitManual = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualName.trim()) return;
@@ -152,41 +382,61 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
     setManualFat("");
   };
 
+  const mealOptions: { id: MealType; label: string }[] = [
+    { id: "breakfast", label: "Breakfast" },
+    { id: "lunch", label: "Lunch" },
+    { id: "dinner", label: "Dinner" },
+    { id: "snack", label: "Snack" },
+    { id: "drink", label: "Drink" },
+  ];
+
+  const examplePrompts = [
+    "2 eggs, 3 tbsp longaniza and cheese",
+    "200g grilled chicken breast, 1.5 cup jasmine rice and steamed broccoli",
+    "1 scoop whey protein, 1 banana and 2 tbsp peanut butter",
+    "8 oz ribeye steak with baked sweet potato and asparagus",
+  ];
+
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-xl bg-white border border-gray-100 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1a1a1a] bg-[#0c0c0c]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-900 flex items-center justify-center font-bold">
               <Utensils className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-[#ededed]">Log Food & Macros</h2>
-              <p className="text-xs text-white/40">Fast natural language parsing or verified database</p>
+              <h2 className="text-base font-bold text-gray-900">Log Meal & Macro Telemetry</h2>
+              <p className="text-xs text-gray-500">Scan photos with AI, describe meals, or search database</p>
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
+            className="p-1.5 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Meal Category Selector */}
-        <div className="px-6 pt-4 pb-2">
-          <label className="text-[11px] font-mono uppercase text-white/40 mb-1.5 block">Log To Meal</label>
-          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-[#0f0f0f] border border-[#1a1a1a]">
+        <div className="px-6 pt-4 pb-2 bg-white">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Log To Meal</label>
+          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-2xl bg-gray-50 border border-gray-100">
             {mealOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => setMealType(opt.id)}
-                className={`py-1.5 text-xs font-medium rounded-lg transition-all capitalize ${
+                className={`py-1.5 text-xs font-semibold rounded-xl transition-all capitalize ${
                   mealType === opt.id
-                    ? "bg-[#1f1f1f] text-[#ededed] shadow-sm border border-[#2e2e2e]"
-                    : "text-white/50 hover:text-white hover:bg-white/[0.02]"
+                    ? "bg-gray-100 text-gray-900 shadow-xs"
+                    : "text-gray-500 hover:text-gray-900"
                 }`}
               >
                 {opt.label}
@@ -195,27 +445,42 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-[#1a1a1a] px-6 gap-6 text-xs font-medium">
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-gray-100 px-6 gap-5 text-xs font-bold bg-white overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab("camera")}
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+              activeTab === "camera"
+                ? "border-gray-200 text-gray-900"
+                : "border-transparent text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>AI Camera & Vision</span>
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-900">
+              NEW
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => setActiveTab("ai_parser")}
-            className={`py-3 flex items-center gap-2 border-b-2 transition-all ${
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "ai_parser"
-                ? "border-emerald-400 text-emerald-400"
-                : "border-transparent text-white/40 hover:text-white/70"
+                ? "border-gray-200 text-gray-900"
+                : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Fast AI Parser</span>
+            <span>Fast AI Text</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("search")}
-            className={`py-3 flex items-center gap-2 border-b-2 transition-all ${
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "search"
-                ? "border-emerald-400 text-emerald-400"
-                : "border-transparent text-white/40 hover:text-white/70"
+                ? "border-gray-200 text-gray-900"
+                : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
             <Search className="w-3.5 h-3.5" />
@@ -224,10 +489,10 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("manual")}
-            className={`py-3 flex items-center gap-2 border-b-2 transition-all ${
+            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "manual"
-                ? "border-emerald-400 text-emerald-400"
-                : "border-transparent text-white/40 hover:text-white/70"
+                ? "border-gray-200 text-gray-900"
+                : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -235,13 +500,357 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body with Scroll */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1">
-          {/* TAB 1: Fast AI Parser */}
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1 bg-white">
+          {/* ========================================================= */}
+          {/* TAB 0: AI Camera & Vision Photo Scanner                   */}
+          {/* ========================================================= */}
+          {activeTab === "camera" && (
+            <div className="space-y-4">
+              {/* If no image captured yet and not analyzing */}
+              {!capturedImage && !photoAnalysisResult && (
+                <div className="space-y-4">
+                  {/* Camera Viewfinder Box */}
+                  <div className="relative rounded-2xl bg-gray-900 overflow-hidden border border-gray-100 aspect-4/3 flex flex-col items-center justify-center text-white">
+                    {cameraActive ? (
+                      <div className="relative w-full h-full">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Target Reticle Overlay */}
+                        <div className="absolute inset-6 border-2 border-white/40 rounded-2xl pointer-events-none flex flex-col justify-between p-3">
+                          <div className="flex justify-between">
+                            <div className="w-4 h-4 border-t-2 border-l-2 border-gray-200" />
+                            <div className="w-4 h-4 border-t-2 border-r-2 border-gray-200" />
+                          </div>
+                          <div className="text-center">
+                            <span className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-xs text-[11px] font-semibold text-white/90">
+                              Center your plate in frame
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <div className="w-4 h-4 border-b-2 border-l-2 border-gray-200" />
+                            <div className="w-4 h-4 border-b-2 border-r-2 border-gray-200" />
+                          </div>
+                        </div>
+
+                        {/* Top-Right Camera Switch */}
+                        <button
+                          type="button"
+                          onClick={toggleCameraFacing}
+                          className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-xs text-white hover:bg-black/80 transition-all shadow-md"
+                          title="Switch camera"
+                        >
+                          <SwitchCamera className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center space-y-4 max-w-sm">
+                        <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto text-blue-400">
+                          <Camera className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <p className="text-base font-bold text-white">AI Meal Photo Scanner</p>
+                          <p className="text-xs text-slate-300 mt-1">
+                            Snap your dish or ingredients. FatBot's computer vision AI will identify portions & macros.
+                          </p>
+                        </div>
+
+                        {/* Primary Quick Snap Action */}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => nativeCameraInputRef.current?.click()}
+                            id="btn-snap-phone-camera"
+                            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-3"
+                          >
+                            <Camera className="w-6 h-6" />
+                            <span>Take Photo</span>
+                          </button>
+
+                          {!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && (
+                            <button
+                              type="button"
+                              onClick={startCamera}
+                              id="btn-open-live-cam"
+                              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-gray-800 hover:bg-gray-700 text-white text-sm font-bold border border-gray-700 transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>Live Stream WebCam</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hidden Native Mobile Camera Input */}
+                  <input
+                    ref={nativeCameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+
+                  {/* Hidden Standard File Gallery Input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+
+                  {/* Camera Shutter Bar if Active */}
+                  {cameraActive && (
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-4 py-2.5 rounded-full bg-gray-50 border border-gray-100 text-xs font-bold text-gray-500 hover:text-gray-900"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={capturePhoto}
+                        className="px-6 py-2.5 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-md transition-all flex items-center gap-2"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <span>Snap & Analyze Photo</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Camera Error / Fallback Notice */}
+                  {cameraError && (
+                    <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-bold">Live Stream Note</p>
+                        <p className="text-[11px] leading-relaxed text-amber-800">{cameraError}</p>
+                        <p className="text-[11px] font-semibold text-blue-700 pt-1">
+                          Tip: Tap "Take Photo (Camera)" above to snap directly with your phone's native camera.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Secondary Action: Upload from Gallery / Files */}
+                  <div className="pt-2 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-left w-full sm:w-auto">
+                      <p className="text-xs font-bold text-gray-900">Or upload a photo from device</p>
+                      <p className="text-[11px] text-gray-500">Accepts JPG, PNG, WEBP, or HEIC</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full sm:w-auto px-4 py-2 rounded-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-900 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-gray-900" />
+                      <span>Choose from Gallery</span>
+                    </button>
+                  </div>
+
+                  {/* Sample Test Meal Presets */}
+                  <div className="pt-3 border-t border-gray-100">
+                    <p className="text-xs font-bold text-gray-900 mb-2">Or test with a sample meal:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sampleImage = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80";
+                          setCapturedImage(sampleImage);
+                          handleAnalyzeImage(sampleImage, "Healthy salmon bowl with avocado and quinoa");
+                        }}
+                        className="p-2.5 rounded-xl border border-gray-200 hover:border-gray-300 bg-gray-50/60 hover:bg-gray-100 text-left text-xs transition-all"
+                      >
+                        <p className="font-bold text-gray-900">🥗 Salmon & Quinoa Bowl</p>
+                        <p className="text-[10px] text-gray-500">Avocado, greens & salmon</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sampleImage = "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=800&q=80";
+                          setCapturedImage(sampleImage);
+                          handleAnalyzeImage(sampleImage, "Grilled steak with roasted sweet potato");
+                        }}
+                        className="p-2.5 rounded-xl border border-gray-200 hover:border-gray-300 bg-gray-50/60 hover:bg-gray-100 text-left text-xs transition-all"
+                      >
+                        <p className="font-bold text-gray-900">🥩 Steak & Sweet Potato</p>
+                        <p className="text-[10px] text-gray-500">8oz sirloin with roasted yam</p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* When an image is captured or selected */}
+              {capturedImage && (
+                <div className="space-y-4">
+                  {/* Photo Preview Card */}
+                  <div className="relative rounded-2xl overflow-hidden border border-gray-100 bg-black/5 aspect-16/10 flex items-center justify-center">
+                    <img
+                      src={capturedImage}
+                      alt="Captured meal"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <button
+                      type="button"
+                      onClick={resetPhotoState}
+                      className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 text-white hover:bg-black transition-all shadow-md"
+                      title="Retake or choose different photo"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                    {isAnalyzingPhoto && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white space-y-2.5">
+                        <Loader2 className="w-8 h-8 animate-spin text-white" />
+                        <p className="text-sm font-bold">FatBot AI Vision Scanning...</p>
+                        <p className="text-xs text-gray-600">Identifying foods, portions & micronutrient density</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Optional user notes */}
+                  {!photoAnalysisResult && !isAnalyzingPhoto && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-gray-900 block">
+                        Add optional notes for AI (e.g. "half portion", "sauce on the side", "olive oil used"):
+                      </label>
+                      <input
+                        type="text"
+                        value={photoNotes}
+                        onChange={(e) => setPhotoNotes(e.target.value)}
+                        placeholder='e.g. "Dressing on the side, ate 3/4 of the bowl"'
+                        className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3.5 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-200"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={resetPhotoState}
+                          className="flex-1 py-2.5 rounded-full bg-gray-50 border border-gray-100 text-xs font-bold text-gray-500 hover:text-gray-900"
+                        >
+                          Retake
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAnalyzeImage(capturedImage, photoNotes)}
+                          className="flex-2 py-2.5 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Analyze with Gemini AI</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI Photo Analysis Result Card */}
+                  {photoAnalysisResult && (
+                    <div className="p-4 rounded-2xl bg-gray-50 border border-blue-500/30/50 space-y-3 animate-fade-in">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-blue-500" />
+                            <span className="text-xs uppercase font-extrabold text-blue-500 tracking-wide">
+                              AI Vision Breakdown
+                            </span>
+                          </div>
+                          <h3 className="text-sm font-bold text-gray-900 mt-0.5">
+                            {photoAnalysisResult.dishSummary || "Identified Meal Components"}
+                          </h3>
+                        </div>
+                        <span className="text-[11px] font-semibold text-gray-500">
+                          {photoAnalysisResult.items.length} detected items
+                        </span>
+                      </div>
+
+                      {/* Items List */}
+                      <div className="space-y-2 divide-y divide-[#EFECE6]">
+                        {photoAnalysisResult.items.map((item, idx) => (
+                          <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between text-xs">
+                            <div className="space-y-0.5">
+                              <p className="font-bold text-gray-900">{item.name}</p>
+                              <p className="text-[11px] text-gray-500">
+                                <span className="font-semibold text-gray-900">{item.calories} kcal</span> ·{" "}
+                                <span className="text-blue-500 font-semibold">{item.protein}g P</span> ·{" "}
+                                <span className="text-amber-500 font-semibold">{item.carbs}g C</span> ·{" "}
+                                <span className="text-rose-500 font-semibold">{item.fat}g F</span>
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-gray-100 text-gray-500 font-semibold">
+                                {item.serving || "1 serving"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePhotoItem(idx)}
+                                className="p-1 text-gray-400 hover:text-rose-600 transition-colors"
+                                title="Remove item"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Summary Total */}
+                      <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase text-gray-500 font-bold">Total Meal Energy</p>
+                          <p className="text-base font-extrabold text-gray-900">
+                            {photoAnalysisResult.totals.calories} kcal
+                          </p>
+                        </div>
+                        <div className="text-right text-xs font-bold text-gray-900 space-x-1.5">
+                          <span className="text-blue-500">{photoAnalysisResult.totals.protein}g P</span>
+                          <span>·</span>
+                          <span className="text-amber-500">{photoAnalysisResult.totals.carbs}g C</span>
+                          <span>·</span>
+                          <span className="text-rose-500">{photoAnalysisResult.totals.fat}g F</span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="pt-1 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={resetPhotoState}
+                          className="px-4 py-2.5 rounded-full bg-white border border-gray-100 text-xs font-bold text-gray-500 hover:text-gray-900"
+                        >
+                          Retake
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCommitPhotoItems}
+                          className="flex-1 py-2.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Log All to {mealType}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 1: Fast AI Parser (Natural Language Text)             */}
+          {/* ========================================================= */}
           {activeTab === "ai_parser" && (
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-white/70 mb-1.5 block">
+                <label className="text-xs font-semibold text-gray-900 mb-1.5 block">
                   Describe what you ate in natural language:
                 </label>
                 <div className="relative">
@@ -250,23 +859,21 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                     onChange={(e) => setNlpInput(e.target.value)}
                     placeholder='e.g., "2 eggs, 3 tbsp longaniza and cheese"'
                     rows={3}
-                    className="w-full rounded-xl bg-[#0f0f0f] border border-[#1f1f1f] px-3.5 py-2.5 text-sm text-[#ededed] placeholder:text-white/25 focus:outline-none focus:border-emerald-500/50 transition-all resize-none font-sans"
+                    className="w-full rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-200 transition-all resize-none"
                   />
                 </div>
               </div>
 
               {/* Example Chips */}
               <div>
-                <p className="text-[11px] font-mono text-white/40 mb-1.5">Try an example:</p>
+                <p className="text-[11px] font-semibold text-gray-500 mb-1.5">Try an example:</p>
                 <div className="flex flex-wrap gap-1.5">
                   {examplePrompts.map((prompt, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => {
-                        setNlpInput(prompt);
-                      }}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-[#0f0f0f] hover:bg-[#1a1a1a] border border-[#1f1f1f] text-white/60 hover:text-white text-left transition-all truncate max-w-full"
+                      onClick={() => setNlpInput(prompt)}
+                      className="text-[11px] font-medium px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-500 text-left transition-all truncate max-w-full"
                     >
                       {prompt}
                     </button>
@@ -278,12 +885,12 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                 type="button"
                 onClick={handleParseNlp}
                 disabled={isParsing || !nlpInput.trim()}
-                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+                className="w-full py-3 rounded-full bg-white hover:bg-gray-200 disabled:opacity-50 text-gray-900 font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
               >
                 {isParsing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Parsing Ingredients & Macros...</span>
+                    <span>Decomposing & Calculating Micros...</span>
                   </>
                 ) : (
                   <>
@@ -295,24 +902,24 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
 
               {/* Parsed Result Preview */}
               {parsedResult && (
-                <div className="p-4 rounded-xl bg-[#0f0f0f] border border-emerald-500/30 space-y-3 animate-fade-in">
+                <div className="p-4 rounded-2xl bg-gray-50 border border-blue-500/30/40 space-y-3 animate-fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase text-emerald-400 font-semibold">
+                    <span className="text-xs uppercase text-blue-500 font-bold">
                       Parsed Items ({parsedResult.items.length})
                     </span>
-                    <span className="text-xs text-white/40">Ready to save</span>
+                    <span className="text-xs text-gray-500">Ready to save</span>
                   </div>
 
-                  <div className="space-y-2 divide-y divide-white/[0.04]">
+                  <div className="space-y-2 divide-y divide-[#EFECE6]">
                     {parsedResult.items.map((item, idx) => (
                       <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between text-xs">
                         <div>
-                          <p className="font-medium text-white/90">{item.name}</p>
-                          <p className="text-[11px] text-white/40 font-mono">
+                          <p className="font-bold text-gray-900">{item.name}</p>
+                          <p className="text-[11px] text-gray-500">
                             {item.calories} kcal · {item.protein}g P · {item.carbs}g C · {item.fat}g F
                           </p>
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.05] text-white/60">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-semibold">
                           {item.serving || "1 serving"}
                         </span>
                       </div>
@@ -320,14 +927,14 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                   </div>
 
                   {/* Summary Total */}
-                  <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between">
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-mono uppercase text-white/40">Total Summary</p>
-                      <p className="text-sm font-bold font-mono text-white/95">
+                      <p className="text-[10px] uppercase text-gray-500 font-semibold">Total Energy</p>
+                      <p className="text-sm font-bold text-gray-900">
                         {parsedResult.totals.calories} kcal
                       </p>
                     </div>
-                    <div className="text-right text-xs font-mono text-white/70">
+                    <div className="text-right text-xs font-semibold text-gray-900">
                       <span>{parsedResult.totals.protein}g P</span> ·{" "}
                       <span>{parsedResult.totals.carbs}g C</span> ·{" "}
                       <span>{parsedResult.totals.fat}g F</span>
@@ -337,27 +944,29 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                   <button
                     type="button"
                     onClick={handleCommitParsed}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2"
                   >
                     <Check className="w-4 h-4" />
-                    <span>Log All {parsedResult.items.length} Items to {mealType}</span>
+                    <span>Log All to {mealType}</span>
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 2: Search Food Database */}
+          {/* ========================================================= */}
+          {/* TAB 2: Search Food Database                               */}
+          {/* ========================================================= */}
           {activeTab === "search" && (
             <div className="space-y-4">
               <div className="relative">
-                <Search className="absolute left-3.5 top-3 w-4 h-4 text-white/30" />
+                <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search chicken breast, oats, salmon, eggs..."
-                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full rounded-2xl bg-gray-50 border border-gray-100 pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-200"
                 />
               </div>
 
@@ -366,19 +975,19 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                   <div
                     key={item.id}
                     onClick={() => handleCommitDbItem(item)}
-                    className="p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.04] hover:border-white/[0.1] cursor-pointer transition-all flex items-center justify-between group"
+                    className="p-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 border border-gray-100 cursor-pointer transition-all flex items-center justify-between group"
                   >
                     <div>
-                      <p className="text-xs font-semibold text-white/90 group-hover:text-emerald-400 transition-colors">
+                      <p className="text-xs font-bold text-gray-900 group-hover:text-gray-900 transition-colors">
                         {item.name}
                       </p>
-                      <p className="text-[11px] text-white/40 font-mono mt-0.5">
+                      <p className="text-[11px] text-gray-500 mt-0.5">
                         {item.servingSize} · {item.category}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-mono font-bold text-white/90">{item.calories} kcal</p>
-                      <p className="text-[10px] font-mono text-white/50">
+                      <p className="text-xs font-bold text-gray-900">{item.calories} kcal</p>
+                      <p className="text-[10px] text-gray-500">
                         {item.protein}g P · {item.carbs}g C · {item.fat}g F
                       </p>
                     </div>
@@ -388,82 +997,84 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: Manual Food Entry */}
+          {/* ========================================================= */}
+          {/* TAB 3: Manual Food Entry                                  */}
+          {/* ========================================================= */}
           {activeTab === "manual" && (
             <form onSubmit={handleCommitManual} className="space-y-3.5">
               <div>
-                <label className="text-xs text-white/70 block mb-1">Food Name *</label>
+                <label className="text-xs font-bold text-gray-900 block mb-1">Food Name *</label>
                 <input
                   type="text"
                   required
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
                   placeholder="e.g. Ribeye Steak"
-                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/50"
+                  className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3.5 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-200"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-white/70 block mb-1">Serving Description</label>
+                <label className="text-xs font-bold text-gray-900 block mb-1">Serving Description</label>
                 <input
                   type="text"
                   value={manualServing}
                   onChange={(e) => setManualServing(e.target.value)}
                   placeholder="e.g. 1 fillet (200g)"
-                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/50"
+                  className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3.5 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-200"
                 />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-white/50 block mb-1">Calories (kcal)</label>
+                  <label className="text-[11px] font-bold text-gray-500 block mb-1">Calories (kcal)</label>
                   <input
                     type="number"
                     required
                     value={manualCalories}
                     onChange={(e) => setManualCalories(e.target.value)}
                     placeholder="350"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500/50"
+                    className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-white/50 block mb-1">Protein (g)</label>
+                  <label className="text-[11px] font-bold text-gray-500 block mb-1">Protein (g)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={manualProtein}
                     onChange={(e) => setManualProtein(e.target.value)}
                     placeholder="30"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500/50"
+                    className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-white/50 block mb-1">Carbs (g)</label>
+                  <label className="text-[11px] font-bold text-gray-500 block mb-1">Carbs (g)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={manualCarbs}
                     onChange={(e) => setManualCarbs(e.target.value)}
                     placeholder="25"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500/50"
+                    className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-mono uppercase text-white/50 block mb-1">Fat (g)</label>
+                  <label className="text-[11px] font-bold text-gray-500 block mb-1">Fat (g)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={manualFat}
                     onChange={(e) => setManualFat(e.target.value)}
                     placeholder="12"
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.1] px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500/50"
+                    className="w-full rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-gray-200"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 mt-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 mt-2 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 <span>Save to {mealType}</span>

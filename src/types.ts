@@ -23,6 +23,23 @@ export type ActivityLevel = 'sedentary' | 'lightly_active' | 'moderately_active'
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'drink';
 
+export interface MicronutrientInfo {
+  fiber?: number; // grams
+  sugar?: number; // grams
+  sodium?: number; // mg
+  potassium?: number; // mg
+  calcium?: number; // mg
+  iron?: number; // mg
+  vitaminA?: number; // mcg
+  vitaminC?: number; // mg
+  vitaminD?: number; // mcg
+  vitaminB12?: number; // mcg
+  magnesium?: number; // mg
+  zinc?: number; // mg
+  saturatedFat?: number; // grams
+  cholesterol?: number; // mg
+}
+
 export interface FoodItem {
   id: string;
   name: string;
@@ -34,6 +51,7 @@ export interface FoodItem {
   servingSize?: string;
   timestamp: string; // ISO string
   notes?: string;
+  micros?: MicronutrientInfo;
 }
 
 export interface SetRecord {
@@ -195,6 +213,7 @@ export interface UserProfile {
   heightCm: number;
   currentWeight: number;
   goalWeight: number;
+  bmr?: number;
   primaryGoal: PrimaryFitnessGoal;
   activityLevel: ActivityLevel;
   weeklyWorkoutTarget: number;

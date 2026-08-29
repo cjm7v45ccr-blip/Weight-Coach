@@ -9,7 +9,8 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ limit: "25mb", extended: true }));
 
 // Initialize Gemini Client safely with User-Agent header as required
 let genAI: GoogleGenAI | null = null;
@@ -150,7 +151,7 @@ function heuristicParseFood(text: string) {
 
 // Helper for resilient Gemini content generation with multi-model fallback and graceful retries
 async function callGeminiWithFallback(paramsGenerator: (model: string) => any) {
-  const models = ["gemini-3.7-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+  const models = ["gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.1-flash-lite"];
   let lastError: any = null;
 
   for (const model of models) {
@@ -192,12 +193,13 @@ app.post("/api/ai/parse-food", async (req: Request, res: Response) => {
   }
 
   try {
-    const prompt = `Parse the following food description into individual food items with realistic estimated macronutrients and calories.
+    const prompt = `Parse the following food description into individual food items with realistic estimated macronutrients, calories, and Cronometer-grade micronutrients (vitamins, minerals, fiber, sodium, etc.).
 Input: "${text}"
 
 Instructions:
 - Decompose into individual ingredients/items (e.g., "2 eggs, 3 tbsp longaniza and cheddar cheese" -> Item 1: 2 Eggs, Item 2: Longaniza (3 tbsp), Item 3: Cheddar Cheese).
 - Calculate calories (kcal), protein (g), carbs (g), fat (g) accurately based on standard USDA nutritional values.
+- Estimate micronutrients: fiber (g), sugar (g), sodium (mg), potassium (mg), calcium (mg), iron (mg), vitaminA (mcg), vitaminC (mg), vitaminD (mcg), vitaminB12 (mcg), magnesium (mg), zinc (mg), saturatedFat (g), cholesterol (mg).
 - Calculate the total calories and total macros sum.
 - Use clean, user-friendly names.`;
 
@@ -220,6 +222,25 @@ Instructions:
                   protein: { type: Type.NUMBER, description: "Protein in grams" },
                   carbs: { type: Type.NUMBER, description: "Carbohydrates in grams" },
                   fat: { type: Type.NUMBER, description: "Fat in grams" },
+                  micros: {
+                    type: Type.OBJECT,
+                    properties: {
+                      fiber: { type: Type.NUMBER },
+                      sugar: { type: Type.NUMBER },
+                      sodium: { type: Type.NUMBER },
+                      potassium: { type: Type.NUMBER },
+                      calcium: { type: Type.NUMBER },
+                      iron: { type: Type.NUMBER },
+                      vitaminA: { type: Type.NUMBER },
+                      vitaminC: { type: Type.NUMBER },
+                      vitaminD: { type: Type.NUMBER },
+                      vitaminB12: { type: Type.NUMBER },
+                      magnesium: { type: Type.NUMBER },
+                      zinc: { type: Type.NUMBER },
+                      saturatedFat: { type: Type.NUMBER },
+                      cholesterol: { type: Type.NUMBER },
+                    },
+                  },
                 },
                 required: ["name", "serving", "calories", "protein", "carbs", "fat"],
               },
@@ -245,6 +266,136 @@ Instructions:
   } catch (error) {
     console.warn("Gemini Food Parsing Error (using fallback):", error);
     return res.json(heuristicParseFood(text));
+  }
+});
+
+// 1B. Camera / Food Image AI Analyzer Endpoint
+app.post("/api/ai/analyze-food-photo", async (req: Request, res: Response) => {
+  const { imageBase64, mimeType = "image/jpeg", notes } = req.body;
+  if (!imageBase64 || typeof imageBase64 !== "string") {
+    return res.status(400).json({ error: "Missing image data" });
+  }
+
+  // Strip prefix data URL if present
+  const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "").trim();
+  const cleanMimeType = mimeType || "image/jpeg";
+
+  if (!genAI) {
+    // Fallback if no API key configured
+    return res.json({
+      dishSummary: "Plate of food (AI Visual analysis requires GEMINI_API_KEY)",
+      items: [
+        {
+          name: notes?.trim() || "Sample Mixed Meal",
+          serving: "1 plate",
+          calories: 520,
+          protein: 38,
+          carbs: 45,
+          fat: 18,
+          micros: {
+            fiber: 5,
+            sodium: 480,
+            potassium: 520,
+            iron: 2.4,
+            calcium: 110,
+          },
+        },
+      ],
+      totals: {
+        calories: 520,
+        protein: 38,
+        carbs: 45,
+        fat: 18,
+      },
+    });
+  }
+
+  try {
+    const promptText = `You are FatBot's computer vision nutrition expert. Analyze this food/meal photograph with high precision:
+1. Identify all visible foods, proteins, carbohydrates, vegetables, sauces, toppings, and drinks on the plate or in the container.
+2. Estimate the portion size/weight realistically based on visual perspective, plate dimensions, and common serving sizes.
+3. Calculate accurate calories (kcal), protein (g), carbs (g), and fat (g) using USDA nutritional standards.
+4. Estimate key micronutrients (fiber, sugar, sodium, potassium, calcium, iron, vitaminA, vitaminC, vitaminD, vitaminB12, magnesium, zinc, saturatedFat, cholesterol).
+5. Provide a short, appetizing dish summary title.
+${notes ? `User notes / context: "${notes}"` : ""}`;
+
+    const response = await callGeminiWithFallback((model) => ({
+      model,
+      contents: [
+        {
+          inlineData: {
+            mimeType: cleanMimeType,
+            data: cleanBase64,
+          },
+        },
+        {
+          text: promptText,
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            dishSummary: { type: Type.STRING, description: "Short descriptive name of the meal/dish" },
+            items: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING, description: "Food item name with quantity/portion" },
+                  serving: { type: Type.STRING, description: "Serving description, e.g. 6 oz grilled fillet or 1 cup" },
+                  calories: { type: Type.NUMBER, description: "Calories for this component in kcal" },
+                  protein: { type: Type.NUMBER, description: "Protein in grams" },
+                  carbs: { type: Type.NUMBER, description: "Carbs in grams" },
+                  fat: { type: Type.NUMBER, description: "Fat in grams" },
+                  micros: {
+                    type: Type.OBJECT,
+                    properties: {
+                      fiber: { type: Type.NUMBER },
+                      sugar: { type: Type.NUMBER },
+                      sodium: { type: Type.NUMBER },
+                      potassium: { type: Type.NUMBER },
+                      calcium: { type: Type.NUMBER },
+                      iron: { type: Type.NUMBER },
+                      vitaminA: { type: Type.NUMBER },
+                      vitaminC: { type: Type.NUMBER },
+                      vitaminD: { type: Type.NUMBER },
+                      vitaminB12: { type: Type.NUMBER },
+                      magnesium: { type: Type.NUMBER },
+                      zinc: { type: Type.NUMBER },
+                      saturatedFat: { type: Type.NUMBER },
+                      cholesterol: { type: Type.NUMBER },
+                    },
+                  },
+                },
+                required: ["name", "serving", "calories", "protein", "carbs", "fat"],
+              },
+            },
+            totals: {
+              type: Type.OBJECT,
+              properties: {
+                calories: { type: Type.NUMBER },
+                protein: { type: Type.NUMBER },
+                carbs: { type: Type.NUMBER },
+                fat: { type: Type.NUMBER },
+              },
+              required: ["calories", "protein", "carbs", "fat"],
+            },
+          },
+          required: ["items", "totals"],
+        },
+      },
+    }));
+
+    const parsedJson = JSON.parse(response.text?.trim() || "{}");
+    return res.json(parsedJson);
+  } catch (error) {
+    console.warn("Gemini Food Vision Error:", error);
+    return res.status(500).json({
+      error: "Failed to analyze food image with AI",
+      details: String(error),
+    });
   }
 });
 
@@ -285,7 +436,7 @@ function generateContextualCoachReply(message: string, userContext: any): { cont
 
     actions.push({
       type: "log_weight",
-      payload: { weight: numWeight, date: dateStr, notes: "Logged via Momentum AI Coach" },
+      payload: { weight: numWeight, date: dateStr, notes: "Logged via FatBot AI" },
       description: `Logged weight: ${numWeight} ${userContext?.unit || "lbs"} for ${dateStr}`,
     });
 
@@ -365,7 +516,7 @@ function generateContextualCoachReply(message: string, userContext: any): { cont
   const formattedToday = now.toLocaleDateString('en-US', dateOptions);
 
   if (lower.includes("name") || lower.includes("who are you") || lower.includes("what are you")) {
-    reply = `I am **Momentum AI**, your dedicated athletic performance, nutrition, and fitness intelligence coach. I'm here to analyze your training, track your nutrition targets, and help you reach your goals.`;
+    reply = `I am **FatBot**, your intelligent fitness, nutrition, and body composition bot. I'm here to track your nutrition targets, analyze workout progressions, and help you achieve optimal physical performance.`;
   } else if (lower.includes("what day") || lower.includes("today's date") || lower.includes("what date") || lower.includes("what time")) {
     reply = `Today is **${formattedToday}**. Ready to crush today's goals?`;
   } else if (lower.startsWith("hi") || lower.startsWith("hello") || lower.startsWith("hey") || lower === "yo") {
@@ -469,10 +620,10 @@ app.post("/api/ai/coach", async (req: Request, res: Response) => {
   }
 
   try {
-    const systemPrompt = `You are Momentum AI, an intelligent, science-grounded AI Fitness & Nutrition Operating System and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the Momentum app.
+    const systemPrompt = `You are FatBot, an intelligent, science-grounded AI Fitness & Nutrition Bot and Coach with FULL CONTROL to view, update, add, and remove the user's data and logs in the FatBot app.
 
 BEHAVIOR AND CONVERSATION RULES:
-1. ALWAYS directly and naturally answer what the user asks. If the user asks general, identity, or conversational questions (e.g. "What is your name?", "Who made you?", "How are you?"), answer warmly and directly as Momentum AI without ignoring their question.
+1. ALWAYS directly and naturally answer what the user asks. If the user asks general, identity, or conversational questions (e.g. "What is your name?", "Who made you?", "How are you?"), answer warmly and directly as FatBot without ignoring their question.
 2. If the user asks about fitness, nutrition, workout adjustments, form, or food recommendations, provide concise, evidence-based, actionable guidance.
 3. NEVER repeat a generic canned template message when the user asks a specific question.
 4. If the user commands an in-app action (e.g. "Change my calorie target to 2100", "Log 174 lbs for yesterday", "I ate 2 eggs and toast"), execute it via the "actions" array and confirm it in your message.
