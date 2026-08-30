@@ -229,6 +229,8 @@ export interface UserProfile {
     waterMl: number;
   };
   onboardingCompleted: boolean;
+  syncApiKey?: boolean;
+  geminiApiKey?: string;
   createdAt: string;
 }
 

@@ -65,7 +65,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [apiKeyStatus, setApiKeyStatus] = useState("");
   const [hasServerKey, setHasServerKey] = useState(true);
+  const [syncApiKeyToggle, setSyncApiKeyToggle] = useState(userProfile.syncApiKey ?? false);
 
+  useEffect(() => {
+    if (userProfile.syncApiKey !== undefined) {
+      setSyncApiKeyToggle(userProfile.syncApiKey);
+    }
+  }, [userProfile.syncApiKey]);
   useEffect(() => {
     fetch("/api/health")
       .then((res) => res.json())
@@ -418,16 +424,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 disabled={!apiKeyInput.trim()}
                 onClick={async () => {
                   try {
+                    const keyVal = apiKeyInput.trim();
                     const res = await fetch("/api/ai/set-key", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ apiKey: apiKeyInput.trim() }),
+                      body: JSON.stringify({ apiKey: keyVal }),
                     });
                     const data = await res.json();
                     if (data.success) {
                       setHasServerKey(true);
                       setApiKeyInput("");
                       setApiKeyStatus("API Key updated successfully!");
+                      if (syncApiKeyToggle) {
+                        updateUserProfile({ syncApiKey: true, geminiApiKey: keyVal });
+                      }
                       setTimeout(() => setApiKeyStatus(""), 3500);
                     } else {
                       throw new Error(data.error || "Failed to update API key");
@@ -441,6 +451,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 Save Key
               </button>
             </div>
+            
+            <div className="pt-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={syncApiKeyToggle}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSyncApiKeyToggle(val);
+                    updateUserProfile({ syncApiKey: val, geminiApiKey: val ? userProfile.geminiApiKey : undefined });
+                  }}
+                  className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 border-gray-300"
+                />
+                <span className="text-[11px] font-medium text-gray-700">Sync API key across my devices via Firebase Cloud Sync</span>
+              </label>
+            </div>
+
             {apiKeyStatus && <p className="text-[11px] font-semibold text-emerald-700">{apiKeyStatus}</p>}
           </div>
 
