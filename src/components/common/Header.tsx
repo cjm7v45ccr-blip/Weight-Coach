@@ -1,5 +1,5 @@
 import React from "react";
-import { Settings, Utensils, Bell, Plus, Dumbbell, Bot } from "lucide-react";
+import { Settings, Utensils, Bell, Plus, Dumbbell, Bot, Cloud, RefreshCw } from "lucide-react";
 import { useFitness } from "../../context/FitnessContext";
 
 interface HeaderProps {
@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWeeklyReview,
   onOpenStrengthTools,
 }) => {
-  const { activeWorkout, startWorkout, startEmptyWorkout } = useFitness();
+  const { activeWorkout, startWorkout, startEmptyWorkout, isCloudSynced, isSyncing, forceSyncToCloud, syncAccountId } = useFitness();
 
   return (
     <header className="sticky top-0 z-30 w-full bg-gray-50/90 backdrop-blur-md border-b border-gray-100 px-4 md:px-8 py-3 flex items-center justify-between transition-all">
@@ -28,12 +28,25 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="flex items-baseline gap-1.5">
           <span className="font-extrabold text-xl tracking-tight text-gray-900">FatBot</span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">AI</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">AI</span>
         </div>
       </div>
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2">
+        {/* Cloud Sync Status Badge */}
+        <button
+          onClick={onOpenSettings}
+          title={isCloudSynced ? `Cloud Sync Active: ${syncAccountId || "Firebase"}` : "Click to connect cloud sync"}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-[11px] font-medium shadow-xs transition-colors"
+        >
+          <span className={`w-2 h-2 rounded-full ${isCloudSynced ? "bg-emerald-500 animate-pulse" : "bg-amber-400"}`} />
+          <Cloud className="w-3.5 h-3.5 text-indigo-600" />
+          <span className="hidden md:inline font-semibold text-gray-800">
+            {isSyncing ? "Syncing..." : isCloudSynced ? "Cloud Synced" : "Offline"}
+          </span>
+        </button>
+
         <button
           onClick={onOpenQuickLogFood}
           id="btn-header-log-food"

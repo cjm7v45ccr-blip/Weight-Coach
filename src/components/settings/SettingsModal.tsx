@@ -1,5 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Settings, RotateCcw, Trash2, Check, User, Target, Flame, Utensils, Sliders, Download, Upload } from "lucide-react";
+import {
+  X,
+  Settings,
+  RotateCcw,
+  Trash2,
+  Check,
+  User,
+  Target,
+  Flame,
+  Utensils,
+  Sliders,
+  Download,
+  Upload,
+  Cloud,
+  RefreshCw,
+  Smartphone,
+  Copy,
+  CheckCircle2,
+  Zap,
+} from "lucide-react";
 import { useFitness } from "../../context/FitnessContext";
 import { PrimaryFitnessGoal } from "../../types";
 import { WeeklyRateSlider } from "../common/WeeklyRateSlider";
@@ -19,8 +38,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     currentUser,
     signInWithGoogle,
     signInWithEmail,
+    signInAnon,
+    resetPassword,
     signOutUser,
     isCloudSynced,
+    syncAccountId,
+    lastCloudSyncTime,
+    isSyncing,
+    connectSyncAccount,
+    disconnectSyncAccount,
+    forceSyncToCloud,
     exportData,
     importData,
   } = useFitness();
@@ -31,6 +58,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [customSyncInput, setCustomSyncInput] = useState(syncAccountId || "rembertovalenzuela12@gmail.com");
+  const [copiedSyncCode, setCopiedSyncCode] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState("");
+
+  useEffect(() => {
+    if (syncAccountId) {
+      setCustomSyncInput(syncAccountId);
+    }
+  }, [syncAccountId]);
 
   const [name, setName] = useState(userProfile.name);
   const [units, setUnits] = useState(userProfile.preferredUnits);
@@ -126,97 +162,215 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         {/* Content */}
         <form onSubmit={handleSave} className="p-6 overflow-y-auto space-y-5 flex-1 bg-white">
           {/* Cloud Sync & Cross-Device Account */}
-          <div className="space-y-3 p-4 rounded-2xl bg-blue-50/50 border border-blue-100">
+          <div className="space-y-3.5 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${isCloudSynced ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-                  Cross-Device Cloud Sync
-                </h3>
-                <p className="text-[11px] text-gray-600 mt-0.5">
-                  {currentUser && !currentUser.isAnonymous
-                    ? `Signed in as ${currentUser.email || currentUser.displayName || "Google User"}`
-                    : "Syncs logs & workouts seamlessly between your phone and Mac in real time."}
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${isCloudSynced ? "bg-emerald-500 animate-pulse" : "bg-amber-400"}`} />
+                  <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                    Firebase Cloud Sync (Active)
+                  </h3>
+                </div>
+                <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">
+                  Linked Account: <span className="font-semibold text-gray-900">{syncAccountId || currentUser?.email || "rembertovalenzuela12@gmail.com"}</span>
+                  {lastCloudSyncTime && <span className="text-indigo-700 ml-1.5 font-medium">• Last sync {lastCloudSyncTime}</span>}
                 </p>
               </div>
-              {currentUser && !currentUser.isAnonymous ? (
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={signOutUser}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors self-start sm:self-auto"
+                  disabled={isSyncing}
+                  onClick={async () => {
+                    try {
+                      await forceSyncToCloud();
+                      setSyncFeedback("Sync refreshed!");
+                      setTimeout(() => setSyncFeedback(""), 3000);
+                    } catch (err: any) {
+                      setAuthError("Sync failed: " + err.message);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 text-xs font-bold hover:bg-indigo-50 transition-colors shadow-xs flex items-center gap-1.5"
                 >
-                  Sign Out
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                  Sync Now
                 </button>
-              ) : (
-                <div className="space-y-3 w-full mt-2">
-                  <div className="flex gap-2">
+
+                {currentUser && !currentUser.isAnonymous && (
+                  <button
+                    type="button"
+                    onClick={signOutUser}
+                    className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Sync ID / Device Pairing */}
+            <div className="p-3 rounded-xl bg-white border border-indigo-100/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
+                  Mobile & Desktop Sync Account ID
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = syncAccountId || customSyncInput || "rembertovalenzuela12@gmail.com";
+                    navigator.clipboard.writeText(text);
+                    setCopiedSyncCode(true);
+                    setTimeout(() => setCopiedSyncCode(false), 2000);
+                  }}
+                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1"
+                >
+                  {copiedSyncCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  {copiedSyncCode ? "Copied ID!" : "Copy Sync ID"}
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter email or sync ID"
+                  value={customSyncInput}
+                  onChange={(e) => setCustomSyncInput(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs font-medium text-gray-900 focus:outline-none focus:border-indigo-500 focus:bg-white"
+                />
+                <button
+                  type="button"
+                  disabled={authLoading || !customSyncInput.trim()}
+                  onClick={async () => {
+                    try {
+                      setAuthLoading(true);
+                      await connectSyncAccount(customSyncInput.trim());
+                      setSyncFeedback("Account linked & synced!");
+                      setTimeout(() => setSyncFeedback(""), 3500);
+                    } catch (err: any) {
+                      setAuthError(err.message || "Failed to link account");
+                    } finally {
+                      setAuthLoading(false);
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors shrink-0"
+                >
+                  {authLoading ? "Linking..." : "Link & Load"}
+                </button>
+              </div>
+
+              {syncFeedback && <p className="text-[11px] text-emerald-600 font-semibold">{syncFeedback}</p>}
+            </div>
+
+            {/* Zero-Config Quick Cloud Options */}
+            <div className="border-t border-indigo-100/70 pt-2.5 space-y-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await signInAnon();
+                      setSyncFeedback("Instant Guest Sync Activated!");
+                      setTimeout(() => setSyncFeedback(""), 3000);
+                    } catch (err: any) {
+                      console.error(err);
+                      alert(`Guest cloud sync error: ${err.message || err.code}`);
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl bg-white border border-indigo-200 hover:bg-indigo-50/60 text-indigo-900 text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>⚡ 1-Click Guest Sync</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await signInWithGoogle();
+                    } catch (err: any) {
+                      console.error(err);
+                      alert("Google popup restricted in this environment. Use the Sync Account ID or Email login.");
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <span>Google Sign-In</span>
+                </button>
+              </div>
+
+              {/* Email / Password fallback */}
+              <div className="pt-2">
+                <p className="text-[11px] font-semibold text-gray-700 mb-1.5">Or Sign In with Password</p>
+                {authError && <p className="text-[11px] text-red-600 mb-2 font-medium">{authError}</p>}
+                <div className="space-y-2">
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-indigo-500"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password (min 6 chars)"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-indigo-500"
+                  />
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUpMode(!isSignUpMode)}
+                      className="text-[11px] text-indigo-600 hover:underline font-semibold"
+                    >
+                      {isSignUpMode ? "Already have account? Sign In" : "Need account? Sign Up"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={authLoading || !authEmail || !authPassword}
+                      onClick={async () => {
+                        setAuthError("");
+                        setAuthLoading(true);
+                        try {
+                          await signInWithEmail(authEmail, authPassword, isSignUpMode);
+                          setAuthEmail("");
+                          setAuthPassword("");
+                          setSyncFeedback("Signed in with Email!");
+                          setTimeout(() => setSyncFeedback(""), 3000);
+                        } catch (err: any) {
+                          setAuthError(err.message || "Authentication failed");
+                        } finally {
+                          setAuthLoading(false);
+                        }
+                      }}
+                      className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
+                    >
+                      {authLoading ? "Processing..." : isSignUpMode ? "Create Account" : "Sign In"}
+                    </button>
+                  </div>
+                  <div className="text-right pt-0.5">
                     <button
                       type="button"
                       onClick={async () => {
+                        if (!authEmail) {
+                          setAuthError("Please enter your email address above first.");
+                          return;
+                        }
                         try {
-                          await signInWithGoogle();
+                          await resetPassword(authEmail);
+                          alert("Password reset/setup email sent! Check your inbox to set a password for your account.");
                         } catch (err: any) {
-                          console.error(err);
-                          alert(`Google sign-in restricted: ${err.message || err.code || "Unauthorized domain"}. Please use Email & Password below for instant sync.`);
+                          setAuthError(err.message || "Failed to send reset email");
                         }
                       }}
-                      className="flex-1 px-3 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                      className="text-[10px] text-gray-500 hover:text-indigo-600 underline"
                     >
-                      <span>Sign in with Google</span>
+                      Forgot password / Set password
                     </button>
                   </div>
-
-                  <div className="border-t border-blue-100/60 pt-3">
-                    <p className="text-[11px] font-semibold text-gray-700 mb-2">Or Sync with Email & Password (Recommended for mobile)</p>
-                    {authError && <p className="text-[11px] text-red-600 mb-2 font-medium">{authError}</p>}
-                    <div className="space-y-2">
-                      <input
-                        type="email"
-                        placeholder="Email address"
-                        value={authEmail}
-                        onChange={(e) => setAuthEmail(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
-                      />
-                      <input
-                        type="password"
-                        placeholder="Password (min 6 chars)"
-                        value={authPassword}
-                        onChange={(e) => setAuthPassword(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
-                      />
-                      <div className="flex items-center justify-between pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setIsSignUpMode(!isSignUpMode)}
-                          className="text-[11px] text-blue-600 hover:underline font-semibold"
-                        >
-                          {isSignUpMode ? "Already have an account? Sign In" : "Need an account? Sign Up"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={authLoading || !authEmail || !authPassword}
-                          onClick={async () => {
-                            setAuthError("");
-                            setAuthLoading(true);
-                            try {
-                              await signInWithEmail(authEmail, authPassword, isSignUpMode);
-                              setAuthEmail("");
-                              setAuthPassword("");
-                            } catch (err: any) {
-                              setAuthError(err.message || "Authentication failed");
-                            } finally {
-                              setAuthLoading(false);
-                            }
-                          }}
-                          className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
-                        >
-                          {authLoading ? "Processing..." : isSignUpMode ? "Create Account" : "Sign In"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

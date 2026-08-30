@@ -29,7 +29,26 @@ import {
   initialWeeklyReview,
 } from "../data/initialData";
 import { aiService } from "../services/aiService";
-import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from "../lib/firebase";
+import {
+  auth,
+  db,
+  googleProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut,
+  onAuthStateChanged,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  serverTimestamp,
+  User,
+} from "../lib/firebase";
 
 interface FitnessContextType {
   // User Profile
@@ -146,8 +165,16 @@ interface FitnessContextType {
   currentUser: User | null;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, pass: string, isSignUp?: boolean) => Promise<void>;
+  signInAnon: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   isCloudSynced: boolean;
+  syncAccountId: string;
+  lastCloudSyncTime: string | null;
+  isSyncing: boolean;
+  connectSyncAccount: (idOrEmail: string) => Promise<void>;
+  disconnectSyncAccount: () => void;
+  forceSyncToCloud: () => Promise<void>;
   exportData: () => void;
   importData: (jsonData: string) => void;
 }
@@ -171,6 +198,30 @@ const STORAGE_KEYS = {
 export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCloudSynced, setIsCloudSynced] = useState(false);
+  const [syncAccountId, setSyncAccountId] = useState<string>(() => {
+    try {
+      return localStorage.getItem("fatbot_cloud_sync_id") || "rembertovalenzuela12@gmail.com";
+    } catch {
+      return "rembertovalenzuela12@gmail.com";
+    }
+  });
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const isIncomingRemoteUpdate = React.useRef<boolean>(false);
+
+  // Compute effective Firestore synchronization key
+  const effectiveSyncKey = useMemo(() => {
+    if (syncAccountId && syncAccountId.trim()) {
+      return syncAccountId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    }
+    if (currentUser?.email) {
+      return currentUser.email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    }
+    if (currentUser?.uid) {
+      return currentUser.uid;
+    }
+    return "guest_fitness_profile";
+  }, [syncAccountId, currentUser]);
 
   useEffect(() => {
     getRedirectResult(auth)
@@ -178,6 +229,11 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (result?.user) {
           setCurrentUser(result.user);
           setIsCloudSynced(true);
+          if (result.user.email) {
+            const clean = result.user.email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+            setSyncAccountId(clean);
+            localStorage.setItem("fatbot_cloud_sync_id", clean);
+          }
         }
       })
       .catch((err) => console.error("Redirect result error:", err));
@@ -186,9 +242,13 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (user) {
         setCurrentUser(user);
         setIsCloudSynced(true);
+        if (user.email) {
+          const clean = user.email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+          setSyncAccountId(clean);
+          localStorage.setItem("fatbot_cloud_sync_id", clean);
+        }
       } else {
         setCurrentUser(null);
-        setIsCloudSynced(false);
       }
     });
     return () => unsubscribe();
@@ -212,6 +272,11 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const result = await signInWithPopup(auth, googleProvider);
       setCurrentUser(result.user);
       setIsCloudSynced(true);
+      if (result.user.email) {
+        const clean = result.user.email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+        setSyncAccountId(clean);
+        localStorage.setItem("fatbot_cloud_sync_id", clean);
+      }
     } catch (err: any) {
       console.warn("Popup blocked or failed, falling back to redirect:", err);
       try {
@@ -227,7 +292,6 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       await signOut(auth);
       setCurrentUser(null);
-      setIsCloudSynced(false);
     } catch (err) {
       console.error("Sign out error:", err);
     }
@@ -242,6 +306,143 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const res = await signInWithEmailAndPassword(auth, email, pass);
       setCurrentUser(res.user);
       setIsCloudSynced(true);
+    }
+    const clean = email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    setSyncAccountId(clean);
+    localStorage.setItem("fatbot_cloud_sync_id", clean);
+  };
+
+  const signInAnon = async () => {
+    const res = await signInAnonymously(auth);
+    setCurrentUser(res.user);
+    setIsCloudSynced(true);
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  const connectSyncAccount = async (idOrEmail: string) => {
+    const cleanId = idOrEmail.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    if (!cleanId) return;
+
+    try {
+      setIsSyncing(true);
+      localStorage.setItem("fatbot_cloud_sync_id", cleanId);
+      setSyncAccountId(cleanId);
+      setIsCloudSynced(true);
+
+      const docSnap = await getDoc(doc(db, "sync_profiles", cleanId));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        isIncomingRemoteUpdate.current = true;
+        if (data.userProfile) {
+          setUserProfileState(data.userProfile);
+          localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.userProfile));
+        }
+        if (data.foodEntries) {
+          setFoodEntries(data.foodEntries);
+          localStorage.setItem(STORAGE_KEYS.FOOD, JSON.stringify(data.foodEntries));
+        }
+        if (data.workouts) {
+          setWorkouts(data.workouts);
+          localStorage.setItem(STORAGE_KEYS.WORKOUTS, JSON.stringify(data.workouts));
+        }
+        if (data.routines) {
+          setRoutines(data.routines);
+          localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(data.routines));
+        }
+        if (data.weightEntries) {
+          setWeightEntries(data.weightEntries);
+          localStorage.setItem(STORAGE_KEYS.WEIGHT, JSON.stringify(data.weightEntries));
+        }
+        if (data.activityEntries) {
+          setActivityEntries(data.activityEntries);
+          localStorage.setItem(STORAGE_KEYS.ACTIVITY, JSON.stringify(data.activityEntries));
+        }
+        if (data.goals) {
+          setGoals(data.goals);
+          localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(data.goals));
+        }
+        if (data.todayWaterMl !== undefined) {
+          setTodayWaterMl(data.todayWaterMl);
+          localStorage.setItem(STORAGE_KEYS.WATER, JSON.stringify(data.todayWaterMl));
+        }
+        if (data.aiMessages) {
+          setAiMessages(data.aiMessages);
+          localStorage.setItem(STORAGE_KEYS.AI_CHAT, JSON.stringify(data.aiMessages));
+        }
+        if (data.weeklyReviews) {
+          setWeeklyReviews(data.weeklyReviews);
+          localStorage.setItem(STORAGE_KEYS.WEEKLY, JSON.stringify(data.weeklyReviews));
+        }
+        setTimeout(() => {
+          isIncomingRemoteUpdate.current = false;
+        }, 800);
+      } else {
+        await setDoc(
+          doc(db, "sync_profiles", cleanId),
+          {
+            userProfile,
+            foodEntries,
+            workouts,
+            routines,
+            weightEntries,
+            activityEntries,
+            goals,
+            todayWaterMl,
+            aiMessages,
+            weeklyReviews,
+            updatedAt: serverTimestamp(),
+            syncAccount: cleanId,
+          },
+          { merge: true }
+        );
+      }
+      setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    } catch (err: any) {
+      console.error("Connect sync account error:", err);
+      throw err;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const disconnectSyncAccount = () => {
+    localStorage.removeItem("fatbot_cloud_sync_id");
+    setSyncAccountId("");
+    setIsCloudSynced(false);
+  };
+
+  const forceSyncToCloud = async () => {
+    if (!effectiveSyncKey) return;
+    try {
+      setIsSyncing(true);
+      const payload = {
+        userProfile,
+        foodEntries,
+        workouts,
+        routines,
+        weightEntries,
+        activityEntries,
+        goals,
+        todayWaterMl,
+        aiMessages,
+        weeklyReviews,
+        updatedAt: serverTimestamp(),
+        syncAccount: effectiveSyncKey,
+      };
+      await setDoc(doc(db, "sync_profiles", effectiveSyncKey), payload, { merge: true });
+      if (currentUser?.uid) {
+        await setDoc(doc(db, "users", currentUser.uid, "fitness", "state"), payload, { merge: true }).catch(() => {});
+      }
+      setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      setIsCloudSynced(true);
+    } catch (err) {
+      console.error("Force sync failed:", err);
+      throw err;
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -506,6 +707,152 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.WATER, JSON.stringify(todayWaterMl));
   }, [todayWaterMl]);
+
+  // Real-time Firestore Cloud Sync Listener
+  useEffect(() => {
+    if (!effectiveSyncKey) return;
+
+    setIsSyncing(true);
+    const docRef = doc(db, "sync_profiles", effectiveSyncKey);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        setIsSyncing(false);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          isIncomingRemoteUpdate.current = true;
+
+          if (data.userProfile) {
+            setUserProfileState(data.userProfile);
+            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data.userProfile));
+          }
+          if (data.foodEntries) {
+            setFoodEntries(data.foodEntries);
+            localStorage.setItem(STORAGE_KEYS.FOOD, JSON.stringify(data.foodEntries));
+          }
+          if (data.workouts) {
+            setWorkouts(data.workouts);
+            localStorage.setItem(STORAGE_KEYS.WORKOUTS, JSON.stringify(data.workouts));
+          }
+          if (data.routines) {
+            setRoutines(data.routines);
+            localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(data.routines));
+          }
+          if (data.weightEntries) {
+            setWeightEntries(data.weightEntries);
+            localStorage.setItem(STORAGE_KEYS.WEIGHT, JSON.stringify(data.weightEntries));
+          }
+          if (data.activityEntries) {
+            setActivityEntries(data.activityEntries);
+            localStorage.setItem(STORAGE_KEYS.ACTIVITY, JSON.stringify(data.activityEntries));
+          }
+          if (data.goals) {
+            setGoals(data.goals);
+            localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(data.goals));
+          }
+          if (data.todayWaterMl !== undefined) {
+            setTodayWaterMl(data.todayWaterMl);
+            localStorage.setItem(STORAGE_KEYS.WATER, JSON.stringify(data.todayWaterMl));
+          }
+          if (data.aiMessages) {
+            setAiMessages(data.aiMessages);
+            localStorage.setItem(STORAGE_KEYS.AI_CHAT, JSON.stringify(data.aiMessages));
+          }
+          if (data.weeklyReviews) {
+            setWeeklyReviews(data.weeklyReviews);
+            localStorage.setItem(STORAGE_KEYS.WEEKLY, JSON.stringify(data.weeklyReviews));
+          }
+
+          setIsCloudSynced(true);
+          setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+
+          setTimeout(() => {
+            isIncomingRemoteUpdate.current = false;
+          }, 800);
+        } else {
+          // Initialize remote document if not present
+          const payload = {
+            userProfile,
+            foodEntries,
+            workouts,
+            routines,
+            weightEntries,
+            activityEntries,
+            goals,
+            todayWaterMl,
+            aiMessages,
+            weeklyReviews,
+            updatedAt: serverTimestamp(),
+            syncAccount: effectiveSyncKey,
+          };
+          setDoc(docRef, payload, { merge: true })
+            .then(() => {
+              setIsCloudSynced(true);
+              setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+            })
+            .catch((e) => console.error("Initial cloud state upload failed:", e));
+        }
+      },
+      (err) => {
+        console.error("Firestore onSnapshot error:", err);
+        setIsSyncing(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [effectiveSyncKey]);
+
+  // Debounced outgoing sync to Firestore whenever local fitness state changes
+  useEffect(() => {
+    if (!effectiveSyncKey) return;
+    if (isIncomingRemoteUpdate.current) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSyncing(true);
+        const payload = {
+          userProfile,
+          foodEntries,
+          workouts,
+          routines,
+          weightEntries,
+          activityEntries,
+          goals,
+          todayWaterMl,
+          aiMessages,
+          weeklyReviews,
+          updatedAt: serverTimestamp(),
+          syncAccount: effectiveSyncKey,
+        };
+        await setDoc(doc(db, "sync_profiles", effectiveSyncKey), payload, { merge: true });
+        if (currentUser?.uid) {
+          await setDoc(doc(db, "users", currentUser.uid, "fitness", "state"), payload, { merge: true }).catch(() => {});
+        }
+        setIsCloudSynced(true);
+        setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      } catch (err) {
+        console.error("Cloud autosync error:", err);
+      } finally {
+        setIsSyncing(false);
+      }
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [
+    userProfile,
+    foodEntries,
+    workouts,
+    routines,
+    weightEntries,
+    activityEntries,
+    goals,
+    todayWaterMl,
+    aiMessages,
+    weeklyReviews,
+    effectiveSyncKey,
+    currentUser,
+  ]);
 
   // Rest Timer Interval
   useEffect(() => {
@@ -1658,8 +2005,16 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         currentUser,
         signInWithGoogle,
         signInWithEmail,
+        signInAnon,
+        resetPassword,
         signOutUser,
         isCloudSynced,
+        syncAccountId,
+        lastCloudSyncTime,
+        isSyncing,
+        connectSyncAccount,
+        disconnectSyncAccount,
+        forceSyncToCloud,
         exportData,
         importData,
       }}
