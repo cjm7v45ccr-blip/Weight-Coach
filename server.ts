@@ -34,6 +34,24 @@ app.get("/api/health", (_req: Request, res: Response) => {
   });
 });
 
+// Configure API Key endpoint
+app.post("/api/ai/set-key", (req: Request, res: Response) => {
+  const { apiKey } = req.body;
+  if (!apiKey || typeof apiKey !== "string") {
+    return res.status(400).json({ error: "Invalid API key" });
+  }
+  process.env.GEMINI_API_KEY = apiKey.trim();
+  genAI = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+  res.json({ success: true, hasApiKey: true });
+});
+
 // Heuristic Fallback Food Parser when offline/no API key
 function heuristicParseFood(text: string) {
   const parts = text.split(/[,;\n\+]|(?:\s+and\s+)/i).map(s => s.trim()).filter(Boolean);

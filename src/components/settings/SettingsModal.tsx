@@ -62,6 +62,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [copiedSyncCode, setCopiedSyncCode] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState("");
 
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [apiKeyStatus, setApiKeyStatus] = useState("");
+  const [hasServerKey, setHasServerKey] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.hasApiKey === "boolean") {
+          setHasServerKey(data.hasApiKey);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (syncAccountId) {
       setCustomSyncInput(syncAccountId);
@@ -372,6 +387,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Gemini AI API Key Configuration */}
+          <div className="space-y-3 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${hasServerKey ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                  Gemini AI API Key Configuration
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-800">
+                {hasServerKey ? "API Key Configured" : "Using Local Fallback"}
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-600 leading-relaxed">
+              FatBot uses Google Gemini AI for food photo vision recognition, AI coach conversations, and workout telemetry. You can update or supply your own Gemini API key below.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                placeholder="AIzaSy... (Gemini API Key)"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-amber-200 text-xs font-mono text-gray-900 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                disabled={!apiKeyInput.trim()}
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/ai/set-key", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ apiKey: apiKeyInput.trim() }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setHasServerKey(true);
+                      setApiKeyInput("");
+                      setApiKeyStatus("API Key updated successfully!");
+                      setTimeout(() => setApiKeyStatus(""), 3500);
+                    } else {
+                      throw new Error(data.error || "Failed to update API key");
+                    }
+                  } catch (err: any) {
+                    setApiKeyStatus("Error: " + err.message);
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors shrink-0"
+              >
+                Save Key
+              </button>
+            </div>
+            {apiKeyStatus && <p className="text-[11px] font-semibold text-emerald-700">{apiKeyStatus}</p>}
           </div>
 
           {/* User Profile */}
