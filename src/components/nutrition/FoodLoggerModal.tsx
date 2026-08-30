@@ -42,15 +42,10 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
   // -------------------------------------------------------------
   // Camera & Image Vision State
   // -------------------------------------------------------------
-  const [cameraActive, setCameraActive] = useState<boolean>(false);
-  const [cameraFacingMode, setCameraFacingMode] = useState<"environment" | "user">("environment");
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [photoNotes, setPhotoNotes] = useState<string>("");
   const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState<boolean>(false);
   const [photoAnalysisResult, setPhotoAnalysisResult] = useState<AnalyzedPhotoFoodResult | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -124,88 +119,8 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
     if (isOpen) {
       setMealType(initialMealType);
       setActiveTab(initialTab);
-      setCameraError(null);
-    } else {
-      stopCamera();
     }
   }, [isOpen, initialMealType, initialTab]);
-
-  // Clean up camera stream on unmount or tab switch
-  useEffect(() => {
-    if (activeTab !== "camera") {
-      stopCamera();
-    }
-  }, [activeTab]);
-
-  // Start live camera stream
-  const startCamera = async () => {
-    setCameraError(null);
-    stopCamera();
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError("Camera access is not supported by your browser or environment. You can still upload meal photos directly below.");
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: cameraFacingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraActive(true);
-    } catch (err: any) {
-      console.warn("Camera access failed:", err);
-      setCameraActive(false);
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setCameraError("Camera permission was denied. Please allow camera access or upload an image file.");
-      } else {
-        setCameraError("Unable to access camera. Please choose an image file from your device below.");
-      }
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
-  const toggleCameraFacing = () => {
-    const nextMode = cameraFacingMode === "environment" ? "user" : "environment";
-    setCameraFacingMode(nextMode);
-    if (cameraActive) {
-      setTimeout(() => startCamera(), 100);
-    }
-  };
-
-  // Capture frame from video stream to base64
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    setCapturedImage(dataUrl);
-    stopCamera();
-    handleAnalyzeImage(dataUrl, photoNotes);
-  };
 
   // Handle photo file selection / drag-and-drop with auto compression
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,20 +131,11 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
       setIsAnalyzingPhoto(true);
       const compressedDataUrl = await compressImageFile(file);
       setCapturedImage(compressedDataUrl);
-      stopCamera();
       handleAnalyzeImage(compressedDataUrl, photoNotes);
     } catch (err) {
-      console.error("Failed to process image:", err);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        setCapturedImage(dataUrl);
-        stopCamera();
-        handleAnalyzeImage(dataUrl, photoNotes);
-      };
-      reader.readAsDataURL(file);
+      console.error("Error processing image:", err);
+      setIsAnalyzingPhoto(false);
     } finally {
-      // Reset input value so user can re-select the same image or snap again
       e.target.value = "";
     }
   };
@@ -295,7 +201,6 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
     setPhotoAnalysisResult(null);
     setPhotoNotes("");
     setIsAnalyzingPhoto(false);
-    stopCamera();
   };
 
   // -------------------------------------------------------------
@@ -414,10 +319,7 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
             </div>
           </div>
           <button
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
+            onClick={onClose}
             className="p-1.5 rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -511,79 +413,30 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                 <div className="space-y-4">
                   {/* Camera Viewfinder Box */}
                   <div className="relative rounded-2xl bg-gray-900 overflow-hidden border border-gray-100 aspect-4/3 flex flex-col items-center justify-center text-white">
-                    {cameraActive ? (
-                      <div className="relative w-full h-full">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Target Reticle Overlay */}
-                        <div className="absolute inset-6 border-2 border-white/40 rounded-2xl pointer-events-none flex flex-col justify-between p-3">
-                          <div className="flex justify-between">
-                            <div className="w-4 h-4 border-t-2 border-l-2 border-gray-200" />
-                            <div className="w-4 h-4 border-t-2 border-r-2 border-gray-200" />
-                          </div>
-                          <div className="text-center">
-                            <span className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-xs text-[11px] font-semibold text-white/90">
-                              Center your plate in frame
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <div className="w-4 h-4 border-b-2 border-l-2 border-gray-200" />
-                            <div className="w-4 h-4 border-b-2 border-r-2 border-gray-200" />
-                          </div>
-                        </div>
+                    <div className="p-6 text-center space-y-4 max-w-sm">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto text-blue-400">
+                        <Camera className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-white">AI Meal Photo Scanner</p>
+                        <p className="text-xs text-slate-300 mt-1">
+                          Snap your dish or ingredients. FatBot's computer vision AI will identify portions & macros.
+                        </p>
+                      </div>
 
-                        {/* Top-Right Camera Switch */}
+                      {/* Primary Quick Snap Action */}
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                         <button
                           type="button"
-                          onClick={toggleCameraFacing}
-                          className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-xs text-white hover:bg-black/80 transition-all shadow-md"
-                          title="Switch camera"
+                          onClick={() => nativeCameraInputRef.current?.click()}
+                          id="btn-snap-phone-camera"
+                          className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-3"
                         >
-                          <SwitchCamera className="w-4 h-4" />
+                          <Camera className="w-6 h-6" />
+                          <span>Take Photo</span>
                         </button>
                       </div>
-                    ) : (
-                      <div className="p-6 text-center space-y-4 max-w-sm">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto text-blue-400">
-                          <Camera className="w-7 h-7" />
-                        </div>
-                        <div>
-                          <p className="text-base font-bold text-white">AI Meal Photo Scanner</p>
-                          <p className="text-xs text-slate-300 mt-1">
-                            Snap your dish or ingredients. FatBot's computer vision AI will identify portions & macros.
-                          </p>
-                        </div>
-
-                        {/* Primary Quick Snap Action */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => nativeCameraInputRef.current?.click()}
-                            id="btn-snap-phone-camera"
-                            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-3"
-                          >
-                            <Camera className="w-6 h-6" />
-                            <span>Take Photo</span>
-                          </button>
-
-                          {!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && (
-                            <button
-                              type="button"
-                              onClick={startCamera}
-                              id="btn-open-live-cam"
-                              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-gray-800 hover:bg-gray-700 text-white text-sm font-bold border border-gray-700 transition-all flex items-center justify-center gap-2"
-                            >
-                              <span>Live Stream WebCam</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Hidden Native Mobile Camera Input */}
@@ -604,41 +457,6 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-
-                  {/* Camera Shutter Bar if Active */}
-                  {cameraActive && (
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={stopCamera}
-                        className="px-4 py-2.5 rounded-full bg-gray-50 border border-gray-100 text-xs font-bold text-gray-500 hover:text-gray-900"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={capturePhoto}
-                        className="px-6 py-2.5 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-bold shadow-md transition-all flex items-center gap-2"
-                      >
-                        <Camera className="w-4 h-4" />
-                        <span>Snap & Analyze Photo</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Camera Error / Fallback Notice */}
-                  {cameraError && (
-                    <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div className="space-y-0.5">
-                        <p className="font-bold">Live Stream Note</p>
-                        <p className="text-[11px] leading-relaxed text-amber-800">{cameraError}</p>
-                        <p className="text-[11px] font-semibold text-blue-700 pt-1">
-                          Tip: Tap "Take Photo (Camera)" above to snap directly with your phone's native camera.
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Secondary Action: Upload from Gallery / Files */}
                   <div className="pt-2 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">

@@ -322,6 +322,27 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await sendPasswordResetEmail(auth, email);
   };
 
+  const getFirestorePayload = (accountKey: string) => {
+    const raw = {
+      userProfile,
+      foodEntries,
+      workouts,
+      routines,
+      weightEntries,
+      activityEntries,
+      goals,
+      todayWaterMl,
+      aiMessages,
+      weeklyReviews,
+      syncAccount: accountKey,
+    };
+    const cleaned = JSON.parse(JSON.stringify(raw, (key, value) => (value === undefined ? null : value)));
+    return {
+      ...cleaned,
+      updatedAt: serverTimestamp(),
+    };
+  };
+
   const connectSyncAccount = async (idOrEmail: string) => {
     const cleanId = idOrEmail.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
     if (!cleanId) return;
@@ -382,20 +403,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } else {
         await setDoc(
           doc(db, "sync_profiles", cleanId),
-          {
-            userProfile,
-            foodEntries,
-            workouts,
-            routines,
-            weightEntries,
-            activityEntries,
-            goals,
-            todayWaterMl,
-            aiMessages,
-            weeklyReviews,
-            updatedAt: serverTimestamp(),
-            syncAccount: cleanId,
-          },
+          getFirestorePayload(cleanId),
           { merge: true }
         );
       }
@@ -418,20 +426,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!effectiveSyncKey) return;
     try {
       setIsSyncing(true);
-      const payload = {
-        userProfile,
-        foodEntries,
-        workouts,
-        routines,
-        weightEntries,
-        activityEntries,
-        goals,
-        todayWaterMl,
-        aiMessages,
-        weeklyReviews,
-        updatedAt: serverTimestamp(),
-        syncAccount: effectiveSyncKey,
-      };
+      const payload = getFirestorePayload(effectiveSyncKey);
       await setDoc(doc(db, "sync_profiles", effectiveSyncKey), payload, { merge: true });
       if (currentUser?.uid) {
         await setDoc(doc(db, "users", currentUser.uid, "fitness", "state"), payload, { merge: true }).catch(() => {});
@@ -772,20 +767,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }, 800);
         } else {
           // Initialize remote document if not present
-          const payload = {
-            userProfile,
-            foodEntries,
-            workouts,
-            routines,
-            weightEntries,
-            activityEntries,
-            goals,
-            todayWaterMl,
-            aiMessages,
-            weeklyReviews,
-            updatedAt: serverTimestamp(),
-            syncAccount: effectiveSyncKey,
-          };
+          const payload = getFirestorePayload(effectiveSyncKey);
           setDoc(docRef, payload, { merge: true })
             .then(() => {
               setIsCloudSynced(true);
@@ -811,20 +793,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const timer = setTimeout(async () => {
       try {
         setIsSyncing(true);
-        const payload = {
-          userProfile,
-          foodEntries,
-          workouts,
-          routines,
-          weightEntries,
-          activityEntries,
-          goals,
-          todayWaterMl,
-          aiMessages,
-          weeklyReviews,
-          updatedAt: serverTimestamp(),
-          syncAccount: effectiveSyncKey,
-        };
+        const payload = getFirestorePayload(effectiveSyncKey);
         await setDoc(doc(db, "sync_profiles", effectiveSyncKey), payload, { merge: true });
         if (currentUser?.uid) {
           await setDoc(doc(db, "users", currentUser.uid, "fitness", "state"), payload, { merge: true }).catch(() => {});
