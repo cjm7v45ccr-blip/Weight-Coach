@@ -505,7 +505,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // 1. Core Persistent States with initial fallbacks
+  // 1. Core Persistent States with initial fallbacks (defaults to empty for true user control)
   const [userProfile, setUserProfileState] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
@@ -519,7 +519,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FOOD);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? initialFoodEntries : [];
+      return [];
     } catch {
       return [];
     }
@@ -529,7 +529,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WORKOUTS);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? initialWorkouts : [];
+      return [];
     } catch {
       return [];
     }
@@ -548,7 +548,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WEIGHT);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? initialWeightEntries : [];
+      return [];
     } catch {
       return [];
     }
@@ -558,7 +558,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? initialActivityEntries : [];
+      return [];
     } catch {
       return [];
     }
@@ -568,7 +568,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.GOALS);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? initialGoals : [];
+      return [];
     } catch {
       return [];
     }
@@ -578,7 +578,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.AI_CHAT);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? initialAIChat : [];
+      return [];
     } catch {
       return [];
     }
@@ -588,7 +588,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WEEKLY);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? [initialWeeklyReview] : [];
+      return [];
     } catch {
       return [];
     }
@@ -598,7 +598,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WATER);
       if (saved !== null) return JSON.parse(saved);
-      return initialUserProfile.onboardingCompleted ? 1800 : 0;
+      return 0;
     } catch {
       return 0;
     }

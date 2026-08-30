@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   UtensilsCrossed,
   Plus,
@@ -30,12 +30,13 @@ export const NutritionView: React.FC<NutritionViewProps> = ({ onOpenFoodLogger }
     todayTotals,
     remainingMacros,
     todayFoodEntries,
+    foodEntries,
     deleteFoodItem,
     todayWaterMl,
     logWater,
   } = useFitness();
 
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(6); // Today (6 = Sunday or current day)
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(6); // 6 = Today
 
   const breakfastItems = todayFoodEntries.filter((f) => f.mealType === "breakfast");
   const lunchItems = todayFoodEntries.filter((f) => f.mealType === "lunch");
@@ -45,16 +46,47 @@ export const NutritionView: React.FC<NutritionViewProps> = ({ onOpenFoodLogger }
   const targetCal = userProfile.dailyTargets?.calories || 2573;
   const targetP = userProfile.dailyTargets?.protein || 160;
 
-  // 7-day adherence mock data for the week strip
-  const daysOfWeek = [
-    { day: "Mon", cal: 2450, protein: 155, status: "hit" },
-    { day: "Tue", cal: 2520, protein: 162, status: "hit" },
-    { day: "Wed", cal: 2610, protein: 158, status: "hit" },
-    { day: "Thu", cal: 2480, protein: 165, status: "hit" },
-    { day: "Fri", cal: 2590, protein: 160, status: "hit" },
-    { day: "Sat", cal: 2700, protein: 150, status: "over" },
-    { day: "Today", cal: todayTotals.calories, protein: todayTotals.protein, status: "current" },
-  ];
+  // Real 7-day history computed dynamically from user's actual food entries
+  const daysOfWeek = useMemo(() => {
+    const days = [];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      const dayName = i === 0 ? "Today" : dayNames[d.getDay()];
+
+      // Filter entries for this day
+      const dayEntries = foodEntries.filter((entry) => entry.timestamp && entry.timestamp.startsWith(dateStr));
+      const dayCal = dayEntries.reduce((acc, curr) => acc + (Number(curr.calories) || 0), 0);
+      const dayProtein = dayEntries.reduce((acc, curr) => acc + (Number(curr.protein) || 0), 0);
+
+      let status: "hit" | "over" | "under" | "current" = "hit";
+      if (i === 0) {
+        status = "current";
+      } else if (dayEntries.length === 0) {
+        status = "under";
+      } else if (dayCal > targetCal + 150) {
+        status = "over";
+      } else if (dayCal < targetCal - 250) {
+        status = "under";
+      }
+
+      days.push({
+        day: dayName,
+        date: dateStr,
+        cal: Math.round(dayCal),
+        protein: Math.round(dayProtein),
+        status,
+        entryCount: dayEntries.length,
+      });
+    }
+    return days;
+  }, [foodEntries, targetCal]);
+
+  const daysOnTargetCount = daysOfWeek.filter((d) => d.entryCount > 0 && d.cal > 0).length;
 
   const waterGoalMl = 3000;
   const waterPercent = Math.min(100, Math.round((todayWaterMl / waterGoalMl) * 100));
@@ -111,8 +143,8 @@ export const NutritionView: React.FC<NutritionViewProps> = ({ onOpenFoodLogger }
             <Calendar className="w-4 h-4 text-gray-700" />
             <span className="text-xs font-bold uppercase tracking-wider text-gray-900">7-Day Macro Consistency</span>
           </div>
-          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-            6/7 Days on Target
+          <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+            {daysOnTargetCount > 0 ? `${daysOnTargetCount}/7 Active Days` : "Log Meals to Track Adherence"}
           </span>
         </div>
 

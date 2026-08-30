@@ -99,10 +99,48 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const fPercent = Math.min(100, Math.round((consumedF / (targetF || 1)) * 100));
   const calPercent = Math.min(100, Math.round((consumedCal / (targetCal || 1)) * 100));
 
-  // Burned & BMR
-  const bmr = userProfile.bmr || 1750;
-  const exerciseBurn = 420;
+  // Burned & BMR calculated from real user profile and today's activity
+  const bmr = userProfile.bmr || Math.round(10 * ((userProfile.currentWeight || 160) * 0.453592) + 6.25 * (userProfile.heightCm || 175) - 5 * (userProfile.age || 25) + (userProfile.gender === "male" ? 5 : -161));
+  const exerciseBurn = Math.round((todayTotals.steps * 0.04) + (todayTotals.activeMinutes * 6.5));
   const totalBurned = bmr + exerciseBurn;
+
+  // Real Micronutrient Totals from today's food entries
+  const todayMicros = todayFoodEntries.reduce(
+    (acc, entry) => {
+      if (!entry.micros) return acc;
+      return {
+        fiber: acc.fiber + (entry.micros.fiber || 0),
+        vitaminC: acc.vitaminC + (entry.micros.vitaminC || 0),
+        vitaminA: acc.vitaminA + (entry.micros.vitaminA || 0),
+        vitaminB12: acc.vitaminB12 + (entry.micros.vitaminB12 || 0),
+        potassium: acc.potassium + (entry.micros.potassium || 0),
+        calcium: acc.calcium + (entry.micros.calcium || 0),
+        sugar: acc.sugar + (entry.micros.sugar || 0),
+        iron: acc.iron + (entry.micros.iron || 0),
+        magnesium: acc.magnesium + (entry.micros.magnesium || 0),
+        zinc: acc.zinc + (entry.micros.zinc || 0),
+        vitaminD: acc.vitaminD + (entry.micros.vitaminD || 0),
+      };
+    },
+    { fiber: 0, vitaminC: 0, vitaminA: 0, vitaminB12: 0, potassium: 0, calcium: 0, sugar: 0, iron: 0, magnesium: 0, zinc: 0, vitaminD: 0 }
+  );
+
+  // Micronutrient percentage of daily recommendation
+  const fiberPercent = Math.min(150, Math.round((todayMicros.fiber / 38) * 100));
+  const vitCPercent = Math.min(150, Math.round((todayMicros.vitaminC / 90) * 100));
+  const vitAPercent = Math.min(150, Math.round((todayMicros.vitaminA / 900) * 100));
+  const vitB12Percent = Math.min(150, Math.round((todayMicros.vitaminB12 / 2.4) * 100));
+  const potassiumPercent = Math.min(150, Math.round((todayMicros.potassium / 4700) * 100));
+  const calciumPercent = Math.min(150, Math.round((todayMicros.calcium / 1000) * 100));
+
+  // Dynamic Nutrition Scores based on real logged food
+  const hasFoodLogged = todayFoodEntries.length > 0;
+  const allTargetsScore = hasFoodLogged ? Math.min(100, Math.round((pPercent + cPercent + fPercent + calPercent) / 4)) : 0;
+  const immuneScore = hasFoodLogged ? Math.min(100, Math.round((vitCPercent + vitAPercent + (todayMicros.zinc ? Math.min(100, (todayMicros.zinc / 11) * 100) : 0)) / 3)) : 0;
+  const antioxidantScore = hasFoodLogged ? Math.min(100, Math.round((vitCPercent + vitAPercent) / 2)) : 0;
+  const boneScore = hasFoodLogged ? Math.min(100, Math.round((calciumPercent + (todayMicros.vitaminD ? Math.min(100, (todayMicros.vitaminD / 20) * 100) : 0)) / 2)) : 0;
+  const heartScore = hasFoodLogged ? Math.min(100, Math.round((fiberPercent + potassiumPercent) / 2)) : 0;
+  const metabolismScore = hasFoodLogged ? Math.min(100, Math.round((pPercent + vitB12Percent) / 2)) : 0;
 
   // Meals grouping
   const breakfastItems = todayFoodEntries.filter((f) => f.mealType === "breakfast");
@@ -485,10 +523,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">Fiber</span>
-                <span className="font-bold text-gray-900">142%</span>
+                <span className="font-bold text-gray-900">{fiberPercent}% ({todayMicros.fiber.toFixed(1)}g)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: "100%" }} />
+                <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, fiberPercent)}%` }} />
               </div>
             </div>
 
@@ -496,10 +534,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">Fat</span>
-                <span className="font-bold text-gray-900">71%</span>
+                <span className="font-bold text-gray-900">{fPercent}% ({consumedF}g)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-amber-400 h-full rounded-full" style={{ width: "71%" }} />
+                <div className="bg-amber-400 h-full rounded-full transition-all" style={{ width: `${Math.min(100, fPercent)}%` }} />
               </div>
             </div>
 
@@ -507,10 +545,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">Vitamin C</span>
-                <span className="font-bold text-gray-900">101%</span>
+                <span className="font-bold text-gray-900">{vitCPercent}% ({todayMicros.vitaminC.toFixed(0)}mg)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-blue-500 h-full rounded-full" style={{ width: "100%" }} />
+                <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, vitCPercent)}%` }} />
               </div>
             </div>
 
@@ -518,10 +556,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">Vitamin A</span>
-                <span className="font-bold text-gray-900">74%</span>
+                <span className="font-bold text-gray-900">{vitAPercent}% ({todayMicros.vitaminA.toFixed(0)}mcg)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full" style={{ width: "74%" }} />
+                <div className="bg-amber-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, vitAPercent)}%` }} />
               </div>
             </div>
 
@@ -529,10 +567,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">B12 (Cobalamin)</span>
-                <span className="font-bold text-gray-900">200%</span>
+                <span className="font-bold text-gray-900">{vitB12Percent}% ({todayMicros.vitaminB12.toFixed(1)}mcg)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-purple-500 h-full rounded-full" style={{ width: "100%" }} />
+                <div className="bg-purple-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, vitB12Percent)}%` }} />
               </div>
             </div>
 
@@ -540,10 +578,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">Potassium</span>
-                <span className="font-bold text-gray-900">127%</span>
+                <span className="font-bold text-gray-900">{potassiumPercent}% ({todayMicros.potassium.toFixed(0)}mg)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-blue-500 h-full rounded-full" style={{ width: "100%" }} />
+                <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, potassiumPercent)}%` }} />
               </div>
             </div>
 
@@ -551,21 +589,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-gray-900">Calcium</span>
-                <span className="font-bold text-gray-900">110%</span>
+                <span className="font-bold text-gray-900">{calciumPercent}% ({todayMicros.calcium.toFixed(0)}mg)</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-blue-500 h-full rounded-full" style={{ width: "100%" }} />
+                <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, calciumPercent)}%` }} />
               </div>
             </div>
 
             {/* Right Col 4: Added Sugars */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-gray-900">Added Sugars</span>
-                <span className="text-[11px] font-bold text-gray-500">Low (Safe)</span>
+                <span className="font-bold text-gray-900">Sugar</span>
+                <span className="text-[11px] font-bold text-gray-700">{todayMicros.sugar.toFixed(1)}g logged</span>
               </div>
               <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: "35%" }} />
+                <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.round((todayMicros.sugar / 50) * 100))}%` }} />
               </div>
             </div>
           </div>
@@ -582,8 +620,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <h2 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight">
               Nutrition Scores
             </h2>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
-              Gold Tier
+            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full">
+              {allTargetsScore >= 80 ? "Optimal Tier" : allTargetsScore > 0 ? "Building" : "No Logs Today"}
             </span>
           </div>
           <button className="text-gray-500 hover:text-gray-900">
@@ -595,49 +633,49 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
               <span className="text-[11px] font-medium text-gray-500">All Targets</span>
-              <p className="text-xl font-bold text-blue-600">90%</p>
+              <p className="text-xl font-bold text-blue-600">{allTargetsScore}%</p>
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-blue-600 h-full rounded-full" style={{ width: "90%" }} />
+                <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${allTargetsScore}%` }} />
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
               <span className="text-[11px] font-medium text-gray-500">Immune Support</span>
-              <p className="text-xl font-bold text-amber-500">79%</p>
+              <p className="text-xl font-bold text-amber-500">{immuneScore}%</p>
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full" style={{ width: "79%" }} />
+                <div className="bg-amber-500 h-full rounded-full transition-all" style={{ width: `${immuneScore}%` }} />
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
               <span className="text-[11px] font-medium text-gray-500">Antioxidants</span>
-              <p className="text-xl font-bold text-emerald-600">94%</p>
+              <p className="text-xl font-bold text-emerald-600">{antioxidantScore}%</p>
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-600 h-full rounded-full" style={{ width: "94%" }} />
+                <div className="bg-emerald-600 h-full rounded-full transition-all" style={{ width: `${antioxidantScore}%` }} />
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
               <span className="text-[11px] font-medium text-gray-500">Bone Health</span>
-              <p className="text-xl font-bold text-amber-500">88%</p>
+              <p className="text-xl font-bold text-amber-500">{boneScore}%</p>
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full" style={{ width: "88%" }} />
+                <div className="bg-amber-500 h-full rounded-full transition-all" style={{ width: `${boneScore}%` }} />
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
               <span className="text-[11px] font-medium text-gray-500">Heart Health</span>
-              <p className="text-xl font-bold text-blue-600">85%</p>
+              <p className="text-xl font-bold text-blue-600">{heartScore}%</p>
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-blue-600 h-full rounded-full" style={{ width: "85%" }} />
+                <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${heartScore}%` }} />
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 text-center space-y-1">
               <span className="text-[11px] font-medium text-gray-500">Metabolism</span>
-              <p className="text-xl font-bold text-purple-600">92%</p>
+              <p className="text-xl font-bold text-purple-600">{metabolismScore}%</p>
               <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-purple-600 h-full rounded-full" style={{ width: "92%" }} />
+                <div className="bg-purple-600 h-full rounded-full transition-all" style={{ width: `${metabolismScore}%` }} />
               </div>
             </div>
           </div>

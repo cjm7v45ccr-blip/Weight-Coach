@@ -168,51 +168,67 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
           </div>
         </div>
 
-        <div className="h-64 sm:h-72 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0284c7" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis
-                dataKey="date"
-                stroke="#64748b"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="#64748b"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                domain={["dataMin - 2", "dataMax + 2"]}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#FFFFFF",
-                  borderColor: "#e2e8f0",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  color: "#0f172a",
-                  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.08)",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="weight"
-                stroke="#0284c7"
-                strokeWidth={2.5}
-                fillOpacity={1}
-                fill="url(#weightGrad)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {chartData.length > 0 ? (
+          <div className="h-64 sm:h-72 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0284c7" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#64748b"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#64748b"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={["dataMin - 2", "dataMax + 2"]}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#FFFFFF",
+                    borderColor: "#e2e8f0",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                    color: "#0f172a",
+                    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.08)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="#0284c7"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#weightGrad)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-48 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-gray-200 rounded-2xl">
+            <Scale className="w-8 h-8 text-gray-400 mb-2" />
+            <p className="text-sm font-bold text-gray-800">No Weight Data Recorded</p>
+            <p className="text-xs text-gray-500 max-w-xs mt-0.5">
+              Log your daily morning weigh-ins to see smoothed moving averages and body composition trajectories.
+            </p>
+            <button
+              onClick={() => setShowLogModal(true)}
+              className="mt-3 px-4 py-1.5 rounded-full bg-gray-900 text-white text-xs font-bold shadow-xs hover:bg-black transition-all"
+            >
+              Log First Weigh-in
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 4. ACTIVE GOALS SUMMARY */}
@@ -232,29 +248,41 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {goals.map((goal) => {
-            const totalDelta = Math.abs(goal.targetValue - goal.startValue);
-            const progressDelta = Math.abs(goal.currentValue - goal.startValue);
-            const percent = totalDelta > 0 ? Math.min(100, Math.round((progressDelta / totalDelta) * 100)) : 100;
+        {goals.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {goals.map((goal) => {
+              const totalDelta = Math.abs(goal.targetValue - goal.startValue);
+              const progressDelta = Math.abs(goal.currentValue - goal.startValue);
+              const percent = totalDelta > 0 ? Math.min(100, Math.round((progressDelta / totalDelta) * 100)) : 100;
 
-            return (
-              <div key={goal.id} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-gray-900">{goal.title}</span>
-                  <span className="font-bold text-blue-600">{percent}%</span>
+              return (
+                <div key={goal.id} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-gray-900">{goal.title}</span>
+                    <span className="font-bold text-blue-600">{percent}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                    <span>Current: {goal.currentValue} {goal.unit}</span>
+                    <span>Target: {goal.targetValue} {goal.unit}</span>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-gray-500">
-                  <span>Current: {goal.currentValue} {goal.unit}</span>
-                  <span>Target: {goal.targetValue} {goal.unit}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-6 text-center border border-dashed border-gray-200 rounded-xl">
+            <p className="text-xs text-gray-500">No active goals configured yet.</p>
+            <button
+              onClick={onOpenGoals}
+              className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 underline"
+            >
+              Set up your first goal &rarr;
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 5. WEIGH-IN LOGS TABLE */}
@@ -263,24 +291,28 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
           Recent Weigh-In Logs
         </h3>
 
-        <div className="space-y-2 divide-y divide-gray-100">
-          {weightEntries.slice(0, 7).map((entry) => (
-            <div key={entry.id} className="pt-2 first:pt-0 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-gray-900">{entry.weight} {userProfile.preferredUnits}</span>
-                <span className="text-gray-500 ml-2">{entry.date}</span>
-                {entry.notes && <span className="text-gray-500 ml-2 italic">"{entry.notes}"</span>}
+        {weightEntries.length > 0 ? (
+          <div className="space-y-2 divide-y divide-gray-100">
+            {weightEntries.slice(0, 7).map((entry) => (
+              <div key={entry.id} className="pt-2 first:pt-0 flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-bold text-gray-900">{entry.weight} {userProfile.preferredUnits}</span>
+                  <span className="text-gray-500 ml-2">{entry.date}</span>
+                  {entry.notes && <span className="text-gray-500 ml-2 italic">"{entry.notes}"</span>}
+                </div>
+                <button
+                  onClick={() => deleteWeightEntry(entry.id)}
+                  className="p-1 rounded-full text-rose-500 hover:bg-rose-50 transition-colors"
+                  title="Delete entry"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button
-                onClick={() => deleteWeightEntry(entry.id)}
-                className="p-1 rounded-full text-rose-500 hover:bg-rose-50 transition-colors"
-                title="Delete entry"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500 italic">No weigh-in entries logged yet. Tap "Log Weight" above to add your first check-in.</p>
+        )}
       </div>
 
       {/* Log Weight Modal */}
