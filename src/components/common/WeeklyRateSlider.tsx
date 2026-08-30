@@ -327,12 +327,12 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
   return (
     <div
       id="weekly-rate-multi-adjuster"
-      className={`rounded-2xl bg-gray-50 border border-gray-100 ${compact ? "p-3.5 space-y-3" : "p-4 sm:p-5 space-y-4"}`}
+      className={`rounded-2xl bg-gray-50/80 border border-gray-200/80 ${compact ? "p-3.5 space-y-3" : "p-4 sm:p-5 space-y-4"}`}
     >
       {/* Top Banner: Navigation Tabs & Telemetry */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-gray-100 border border-gray-200/20 text-white">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-gray-200/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center shrink-0">
             <Scale className="w-4 h-4" />
           </div>
           <div>
@@ -349,23 +349,23 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
         </div>
 
         {/* Big Calculated Rate Outcome */}
-        <div className="flex items-center sm:justify-end gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-xs">
+        <div className="flex items-center sm:justify-end gap-3 bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-xs">
           <div className="text-left sm:text-right">
             <div className="text-xs font-mono font-bold flex items-center sm:justify-end gap-1.5">
               {weeklyRateDisplay < 0 ? (
-                <TrendingDown className="w-4 h-4 text-blue-500" />
+                <TrendingDown className="w-4 h-4 text-blue-600" />
               ) : weeklyRateDisplay > 0 ? (
-                <TrendingUp className="w-4 h-4 text-amber-400" />
+                <TrendingUp className="w-4 h-4 text-amber-500" />
               ) : (
-                <Zap className="w-4 h-4 text-rose-500" />
+                <Zap className="w-4 h-4 text-purple-600" />
               )}
               <span
                 className={
                   weeklyRateDisplay < 0
-                    ? "text-blue-500 text-sm font-extrabold"
+                    ? "text-blue-600 text-sm font-extrabold"
                     : weeklyRateDisplay > 0
-                    ? "text-amber-400 text-sm font-extrabold"
-                    : "text-rose-500 text-sm font-extrabold"
+                    ? "text-amber-600 text-sm font-extrabold"
+                    : "text-purple-600 text-sm font-extrabold"
                 }
               >
                 {weeklyRateDisplay > 0 ? "+" : ""}
@@ -380,14 +380,14 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
       </div>
 
       {/* Mode Switcher Tabs */}
-      <div className="flex items-center justify-between gap-1 bg-white p-1 rounded-xl border border-gray-100">
+      <div className="flex items-center justify-between gap-1 bg-gray-200/60 p-1 rounded-xl">
         <button
           type="button"
           onClick={() => setActiveTab("master_pace")}
           className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "master_pace"
-              ? "bg-gray-900 text-white shadow-xs"
-              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              ? "bg-white text-gray-900 shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
           }`}
         >
           <Sliders className="w-3.5 h-3.5" />
@@ -399,8 +399,8 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           onClick={() => setActiveTab("macro_sliders")}
           className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "macro_sliders"
-              ? "bg-gray-900 text-white shadow-xs"
-              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              ? "bg-white text-gray-900 shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
           }`}
         >
           <Utensils className="w-3.5 h-3.5" />
@@ -412,8 +412,8 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           onClick={() => setActiveTab("activity_sliders")}
           className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "activity_sliders"
-              ? "bg-gray-900 text-white shadow-xs"
-              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              ? "bg-white text-gray-900 shadow-xs"
+              : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
           }`}
         >
           <Footprints className="w-3.5 h-3.5" />
@@ -423,11 +423,11 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
 
       {/* TAB 1: MASTER PACE SLIDER */}
       {activeTab === "master_pace" && (
-        <div className="space-y-3 animate-fade-in bg-white p-4 rounded-xl border border-gray-100">
+        <div className="space-y-3 animate-fade-in bg-white p-4 rounded-xl border border-gray-200/80">
           <div className="flex items-center justify-between text-[11px] font-bold text-gray-500">
-            <span className="text-white">-1.5 {isLbs ? "lbs" : "kg"}/wk (Cut)</span>
+            <span className="text-blue-600">-1.5 {isLbs ? "lbs" : "kg"}/wk (Cut)</span>
             <span className="text-gray-900">Move Bar to Adjust Pace</span>
-            <span className="text-amber-400">+1.0 {isLbs ? "lbs" : "kg"}/wk (Bulk)</span>
+            <span className="text-amber-600">+1.0 {isLbs ? "lbs" : "kg"}/wk (Bulk)</span>
           </div>
 
           <div className="relative flex items-center">
@@ -439,7 +439,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               step="25"
               value={dailyDelta}
               onChange={(e) => handleMasterPaceChange(Number(e.target.value))}
-              className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#FF6B4A] focus:outline-none"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-900 focus:outline-none"
             />
           </div>
 
@@ -454,8 +454,8 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
                   onClick={() => handleMasterPaceChange(preset.delta)}
                   className={`px-2 py-1.5 text-[10px] font-bold rounded-lg border transition-all text-center truncate ${
                     isSelected
-                      ? "bg-gray-100 border-gray-200/40 text-white"
-                      : "bg-gray-50 border-gray-100 text-gray-500 hover:text-gray-900 hover:bg-white"
+                      ? "bg-gray-900 border-gray-900 text-white shadow-xs"
+                      : "bg-gray-50 border-gray-200 text-gray-700 hover:text-gray-900 hover:bg-white"
                   }`}
                   title={preset.label}
                 >
@@ -469,7 +469,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
 
       {/* TAB 2: INDIVIDUAL MACRO SLIDERS */}
       {activeTab === "macro_sliders" && (
-        <div className="space-y-4 animate-fade-in bg-white p-4 rounded-xl border border-gray-100">
+        <div className="space-y-4 animate-fade-in bg-white p-4 rounded-xl border border-gray-200/80">
           {/* Quick Macro Ratio Presets */}
           <div className="flex flex-wrap gap-1.5 items-center justify-between pb-1">
             <span className="text-[10px] font-bold text-gray-500 uppercase">Macro Splits:</span>
@@ -477,28 +477,28 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               <button
                 type="button"
                 onClick={() => applyPresetSplit("high_protein")}
-                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-900"
+                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900"
               >
                 High Protein (40/35/25)
               </button>
               <button
                 type="button"
                 onClick={() => applyPresetSplit("balanced")}
-                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-900"
+                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900"
               >
                 Zone Balance (30/45/25)
               </button>
               <button
                 type="button"
                 onClick={() => applyPresetSplit("high_carb")}
-                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-900"
+                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900"
               >
                 High Carb (25/55/20)
               </button>
               <button
                 type="button"
                 onClick={() => applyPresetSplit("keto_lowcarb")}
-                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-100 text-gray-900"
+                className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900"
               >
                 Low Carb (35/10/55)
               </button>
@@ -506,10 +506,10 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           </div>
 
           {/* Protein Slider */}
-          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-white flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-white inline-block" />
+              <span className="font-bold text-blue-600 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" />
                 Protein
               </span>
               <span className="font-mono text-gray-900 font-bold">
@@ -523,7 +523,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               step="5"
               value={effProtein}
               onChange={(e) => handleProteinSlider(Number(e.target.value))}
-              className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#FF6B4A]"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
             <div className="flex justify-between text-[9px] font-bold text-gray-500">
               <span>80g (0.5g/lb)</span>
@@ -533,9 +533,9 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           </div>
 
           {/* Carbs Slider */}
-          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-amber-500 flex items-center gap-1.5">
+              <span className="font-bold text-amber-600 flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
                 Carbohydrates
               </span>
@@ -550,7 +550,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               step="5"
               value={effCarbs}
               onChange={(e) => handleCarbSlider(Number(e.target.value))}
-              className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#00C1D4]"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
             />
             <div className="flex justify-between text-[9px] font-bold text-gray-500">
               <span>30g (Low Carb)</span>
@@ -560,10 +560,10 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           </div>
 
           {/* Fat Slider */}
-          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-blue-500 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+              <span className="font-bold text-purple-600 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
                 Fats
               </span>
               <span className="font-mono text-gray-900 font-bold">
@@ -577,7 +577,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               step="2"
               value={effFat}
               onChange={(e) => handleFatSlider(Number(e.target.value))}
-              className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#2EC47D]"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
             <div className="flex justify-between text-[9px] font-bold text-gray-500">
               <span>30g (Lean)</span>
@@ -590,11 +590,11 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
 
       {/* TAB 3: ACTIVITY & WATER SLIDERS */}
       {activeTab === "activity_sliders" && (
-        <div className="space-y-4 animate-fade-in bg-white p-4 rounded-xl border border-gray-100">
+        <div className="space-y-4 animate-fade-in bg-white p-4 rounded-xl border border-gray-200/80">
           {/* Steps Slider */}
-          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-blue-500 flex items-center gap-1.5">
+              <span className="font-bold text-emerald-600 flex items-center gap-1.5">
                 <Footprints className="w-3.5 h-3.5" />
                 Daily Step Target (NEAT)
               </span>
@@ -609,7 +609,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               step="500"
               value={effSteps}
               onChange={(e) => handleStepSlider(Number(e.target.value))}
-              className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#2EC47D]"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
             />
             <div className="flex justify-between text-[9px] font-bold text-gray-500">
               <span>4,000 (Desk)</span>
@@ -619,9 +619,9 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           </div>
 
           {/* Water Slider */}
-          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-amber-500 flex items-center gap-1.5">
+              <span className="font-bold text-sky-600 flex items-center gap-1.5">
                 <Droplets className="w-3.5 h-3.5" />
                 Daily Water Hydration
               </span>
@@ -636,7 +636,7 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
               step="100"
               value={effWater}
               onChange={(e) => handleWaterSlider(Number(e.target.value))}
-              className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-[#00C1D4]"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-sky-500"
             />
             <div className="flex justify-between text-[9px] font-bold text-gray-500">
               <span>1,500 ml</span>
@@ -653,29 +653,29 @@ export const WeeklyRateSlider: React.FC<WeeklyRateSliderProps> = ({
           <span>Macro Energy Breakdown</span>
           <span className="text-gray-900 font-bold">{currentCalories.toLocaleString()} total kcal</span>
         </div>
-        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-gray-100">
-          <div style={{ width: `${pPct}%` }} className="bg-white transition-all" title={`Protein: ${pPct}%`} />
+        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-gray-200">
+          <div style={{ width: `${pPct}%` }} className="bg-blue-600 transition-all" title={`Protein: ${pPct}%`} />
           <div style={{ width: `${cPct}%` }} className="bg-amber-500 transition-all" title={`Carbs: ${cPct}%`} />
-          <div style={{ width: `${fPct}%` }} className="bg-blue-500 transition-all" title={`Fat: ${fPct}%`} />
+          <div style={{ width: `${fPct}%` }} className="bg-purple-500 transition-all" title={`Fat: ${fPct}%`} />
         </div>
-        <div className="flex justify-between text-[10px] font-bold pt-0.5">
-          <span className="text-white">● {effProtein}g P ({pPct}%)</span>
-          <span className="text-amber-500">● {effCarbs}g C ({cPct}%)</span>
-          <span className="text-blue-500">● {effFat}g F ({fPct}%)</span>
-          <span className="text-gray-500">● {effSteps.toLocaleString()} steps</span>
+        <div className="flex flex-wrap justify-between gap-1 text-[10px] font-bold pt-0.5">
+          <span className="text-blue-600">● {effProtein}g P ({pPct}%)</span>
+          <span className="text-amber-600">● {effCarbs}g C ({cPct}%)</span>
+          <span className="text-purple-600">● {effFat}g F ({fPct}%)</span>
+          <span className="text-emerald-600">● {effSteps.toLocaleString()} steps</span>
         </div>
       </div>
 
       {/* Target Timeline Forecast */}
-      <div className="p-3.5 rounded-xl bg-white border border-gray-100 space-y-1">
+      <div className="p-3.5 rounded-xl bg-white border border-gray-200/80 space-y-1 shadow-2xs">
         <div className="flex items-start gap-2">
-          <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5 text-xs">
-            <p className="text-gray-500 leading-relaxed text-[11px]">
+            <p className="text-gray-600 leading-relaxed text-[11px]">
               {rateClassification.description}
             </p>
             {estimatedWeeksToGoal && (
-              <p className="text-[11px] font-bold text-blue-500">
+              <p className="text-[11px] font-bold text-blue-600">
                 🎯 Target Timeline: <span className="underline">{estimatedWeeksToGoal}</span> to reach {goalWeight} {userProfile.preferredUnits} from current {weight} {userProfile.preferredUnits}.
               </p>
             )}

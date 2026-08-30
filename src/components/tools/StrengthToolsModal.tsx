@@ -148,16 +148,16 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
   const warmupSets = calculateWarmup(workingWeight);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gray-900/40 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-2xl bg-white border border-gray-200/80 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-modal">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-100 text-amber-500 border border-amber-200">
-              <Calculator className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-900 border border-gray-200/60 flex items-center justify-center shrink-0">
+              <Calculator className="w-4 h-4 text-gray-700" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">Athletic Strength Utilities</h2>
+              <h2 className="text-base font-bold text-gray-900">Strength Utilities</h2>
               <p className="text-xs text-gray-500">
                 Barbell Plate Math · 1RM Estimator · Warmup Ramp
               </p>
@@ -166,49 +166,51 @@ export const StrengthToolsModal: React.FC<StrengthToolsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-black/5 transition-colors"
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-gray-100 bg-gray-50 px-4 pt-2 gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("plates")}
-            className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
-              activeTab === "plates"
-                ? "text-gray-900 border-gray-200 bg-white shadow-xs"
-                : "text-gray-500 border-transparent hover:text-gray-900"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Plate Calculator</span>
-          </button>
+        <div className="px-6 py-2.5 border-b border-gray-100 bg-gray-50/60 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 p-1 bg-gray-200/60 rounded-xl w-full">
+            <button
+              onClick={() => setActiveTab("plates")}
+              className={`flex-1 min-w-fit px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap transition-all duration-150 ${
+                activeTab === "plates"
+                  ? "bg-white text-gray-900 shadow-xs font-bold"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-blue-600" />
+              <span>Plate Calculator</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab("1rm")}
-            className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
-              activeTab === "1rm"
-                ? "text-gray-900 border-gray-200 bg-white shadow-xs"
-                : "text-gray-500 border-transparent hover:text-gray-900"
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>1-Rep Max (1RM)</span>
-          </button>
+            <button
+              onClick={() => setActiveTab("1rm")}
+              className={`flex-1 min-w-fit px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap transition-all duration-150 ${
+                activeTab === "1rm"
+                  ? "bg-white text-gray-900 shadow-xs font-bold"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+              <span>1-Rep Max (1RM)</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab("warmup")}
-            className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-1.5 ${
-              activeTab === "warmup"
-                ? "text-gray-900 border-gray-200 bg-white shadow-xs"
-                : "text-gray-500 border-transparent hover:text-gray-900"
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            <span>Warmup Ramp</span>
-          </button>
+            <button
+              onClick={() => setActiveTab("warmup")}
+              className={`flex-1 min-w-fit px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap transition-all duration-150 ${
+                activeTab === "warmup"
+                  ? "bg-white text-gray-900 shadow-xs font-bold"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-rose-500" />
+              <span>Warmup Ramp</span>
+            </button>
+          </div>
         </div>
 
         {/* Content Area */}

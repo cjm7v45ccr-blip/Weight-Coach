@@ -180,13 +180,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-3xl bg-white border border-gray-200/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gray-900/40 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-3xl bg-white border border-gray-200/80 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-modal">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gray-100 text-gray-900 border border-gray-200/60">
-              <Settings className="w-5 h-5 text-gray-700" />
+            <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-200/60 shrink-0">
+              <Settings className="w-4 h-4 text-gray-700" />
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-900">Application Settings</h2>
@@ -195,15 +195,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation Bar */}
-        <div className="px-6 border-b border-gray-100 bg-gray-50/70 overflow-x-auto scrollbar-none">
-          <div className="flex items-center gap-1.5 py-2.5">
+        <div className="px-6 py-2.5 border-b border-gray-100 bg-gray-50/60 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 p-1 bg-gray-200/60 rounded-xl w-full">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -212,10 +212,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 whitespace-nowrap transition-all ${
+                  className={`flex-1 min-w-fit px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 whitespace-nowrap transition-all duration-150 ${
                     isActive
-                      ? "bg-white text-gray-900 shadow-sm border border-gray-200/80 font-bold"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                      ? "bg-white text-gray-900 shadow-xs font-bold"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-white/40"
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? "text-blue-600" : "text-gray-400"}`} />

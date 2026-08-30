@@ -51,12 +51,12 @@ export const GoalsModal: React.FC<GoalsModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-gray-900/40 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-2xl bg-white border border-gray-200/80 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-modal">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-amber-100 border border-amber-200 text-amber-500">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
               <Target className="w-4 h-4" />
             </div>
             <div>
@@ -66,7 +66,7 @@ export const GoalsModal: React.FC<GoalsModalProps> = ({ isOpen, onClose }) => {
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-black/5 transition-colors"
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
