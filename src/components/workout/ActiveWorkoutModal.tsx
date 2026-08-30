@@ -82,30 +82,30 @@ export const ActiveWorkoutModal: React.FC = () => {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[95vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-2xl bg-white border border-gray-100 rounded-t-3xl sm:rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-500 border border-amber-200 animate-pulse">
-              <Dumbbell className="w-5 h-5" />
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100 bg-gray-50/90">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-100 text-amber-600 border border-amber-200/80 animate-pulse shrink-0">
+              <Dumbbell className="w-4.5 h-4.5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-gray-900">{activeWorkout.name}</h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-500 border border-amber-200">
-                  LIVE SESSION
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm sm:text-base font-bold text-gray-900">{activeWorkout.name}</h2>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                  LIVE
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {completedSetsCount} / {totalSetsCount} sets completed · {liveVolume.toLocaleString()} {userProfile.preferredUnits} volume
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                {completedSetsCount}/{totalSetsCount} sets · {liveVolume.toLocaleString()} {userProfile.preferredUnits}
               </p>
             </div>
           </div>
 
           <button
             onClick={cancelActiveWorkout}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-black/5 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-200/60 transition-colors"
             title="Minimize / Cancel"
           >
             <X className="w-5 h-5" />
@@ -113,7 +113,7 @@ export const ActiveWorkoutModal: React.FC = () => {
         </div>
 
         {/* Exercises Scroll Container */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 bg-white">
+        <div className="p-3.5 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1 bg-white">
           {activeWorkout.exercises.map((exercise, exIdx) => {
             // Find progressive overload tip for this exercise if available
             const overloadTip = progressiveOverloadAdvice.find(
@@ -123,23 +123,23 @@ export const ActiveWorkoutModal: React.FC = () => {
             return (
               <div
                 key={exercise.id}
-                className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-3 shadow-xs"
+                className="p-3.5 sm:p-4 rounded-2xl bg-gray-50/90 border border-gray-200/80 space-y-3 shadow-xs"
               >
                 {/* Exercise Title Bar */}
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-gray-900">{exercise.name}</h3>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-gray-100 text-gray-500">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900">{exercise.name}</h3>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600">
                         {exercise.muscleGroup}
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-500 font-mono mt-0.5">
-                      Target: {exercise.targetSets} sets × {exercise.targetRepsRange} reps · Rest {exercise.targetRestSeconds}s
+                    <p className="text-[10px] sm:text-[11px] text-gray-500 font-mono mt-0.5">
+                      Target: {exercise.targetSets} × {exercise.targetRepsRange} reps · Rest {exercise.targetRestSeconds}s
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => removeExerciseFromActiveWorkout(exIdx)}
@@ -153,7 +153,7 @@ export const ActiveWorkoutModal: React.FC = () => {
 
                 {/* Progressive Overload Tip Banner */}
                 {overloadTip && (
-                  <div className="p-2.5 rounded-lg bg-amber-100 border border-amber-200 text-xs text-amber-700 flex items-start gap-2">
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-800 flex items-start gap-2">
                     <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <p className="text-[11px] leading-relaxed font-medium">{overloadTip.recommendation}</p>
                   </div>
@@ -163,50 +163,52 @@ export const ActiveWorkoutModal: React.FC = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs font-mono">
                     <thead>
-                      <tr className="text-gray-500 border-b border-gray-100">
-                        <th className="pb-2 w-12 font-bold">SET</th>
-                        <th className="pb-2 font-bold">WEIGHT ({userProfile.preferredUnits.toUpperCase()})</th>
-                        <th className="pb-2 font-bold">REPS</th>
-                        <th className="pb-2 text-center w-16 font-bold">DONE</th>
-                        <th className="pb-2 w-8"></th>
+                      <tr className="text-gray-400 border-b border-gray-200 text-[10px] uppercase">
+                        <th className="pb-1.5 w-10 font-bold">SET</th>
+                        <th className="pb-1.5 font-bold">LBS / KG</th>
+                        <th className="pb-1.5 font-bold">REPS</th>
+                        <th className="pb-1.5 text-center w-14 font-bold">DONE</th>
+                        <th className="pb-1.5 w-7"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#EFECE6]">
+                    <tbody className="divide-y divide-gray-200/60">
                       {exercise.sets.map((set, sIdx) => (
                         <tr
                           key={set.id}
                           className={`transition-colors ${
-                            set.completed ? "bg-emerald-50/60" : "hover:bg-white"
+                            set.completed ? "bg-emerald-50/70" : "hover:bg-white"
                           }`}
                         >
-                          <td className="py-2.5 font-bold text-gray-900">
+                          <td className="py-2 font-bold text-gray-900">
                             {set.setNumber}
                           </td>
-                          <td className="py-2.5 pr-2">
+                          <td className="py-2 pr-1.5">
                             <input
                               type="number"
+                              inputMode="decimal"
                               value={set.weight}
                               onChange={(e) =>
                                 updateActiveSet(exIdx, sIdx, {
                                   weight: Number(e.target.value) || 0,
                                 })
                               }
-                              className="w-20 px-2.5 py-1 rounded-lg bg-white border border-gray-100 text-gray-900 text-xs font-mono font-bold focus:border-gray-200 focus:outline-none"
+                              className="w-16 sm:w-20 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-900 text-xs font-mono font-bold focus:border-indigo-500 focus:outline-none"
                             />
                           </td>
-                          <td className="py-2.5 pr-2">
+                          <td className="py-2 pr-1.5">
                             <input
                               type="number"
+                              inputMode="numeric"
                               value={set.reps}
                               onChange={(e) =>
                                 updateActiveSet(exIdx, sIdx, {
                                   reps: Number(e.target.value) || 0,
                                 })
                               }
-                              className="w-16 px-2.5 py-1 rounded-lg bg-white border border-gray-100 text-gray-900 text-xs font-mono font-bold focus:border-gray-200 focus:outline-none"
+                              className="w-14 sm:w-16 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-900 text-xs font-mono font-bold focus:border-indigo-500 focus:outline-none"
                             />
                           </td>
-                          <td className="py-2.5 text-center">
+                          <td className="py-2 text-center">
                             <button
                               type="button"
                               onClick={() =>
@@ -218,23 +220,23 @@ export const ActiveWorkoutModal: React.FC = () => {
                                   exercise.targetRestSeconds
                                 )
                               }
-                              className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-all ${
+                              className={`w-8 h-8 rounded-xl inline-flex items-center justify-center transition-all ${
                                 set.completed
-                                  ? "bg-blue-500 text-white shadow-sm shadow-[#2EC47D]/30 scale-105"
-                                  : "bg-white border border-gray-100 text-gray-400 hover:bg-gray-50 hover:text-gray-900"
+                                  ? "bg-emerald-600 text-white shadow-xs scale-105"
+                                  : "bg-white border border-gray-200 text-gray-400 hover:bg-gray-50 active:scale-95"
                               }`}
                             >
-                              <Check className="w-4 h-4" />
+                              <Check className="w-4 h-4 stroke-[2.5]" />
                             </button>
                           </td>
-                          <td className="py-2.5 text-right">
+                          <td className="py-2 text-right">
                             <button
                               type="button"
                               onClick={() => deleteSetFromExercise(exIdx, sIdx)}
                               className="p-1 text-gray-400 hover:text-rose-600 transition-colors"
                               title="Delete set"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </td>
                         </tr>

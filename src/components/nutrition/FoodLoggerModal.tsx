@@ -400,17 +400,17 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
-      <div className="relative w-full max-w-xl bg-white border border-gray-100 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-xl bg-white border border-gray-100 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100 bg-gray-50/90">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-900 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold shrink-0">
               <Utensils className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">Log Meal & Macro Telemetry</h2>
-              <p className="text-xs text-gray-500">Scan photos with AI, describe meals, or search database</p>
+              <h2 className="text-sm sm:text-base font-bold text-gray-900">Log Food & Macros</h2>
+              <p className="text-[11px] text-gray-500 hidden sm:block">Scan photos with AI, describe meals, or search database</p>
             </div>
           </div>
           <button
@@ -418,24 +418,26 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
               stopCamera();
               onClose();
             }}
-            className="p-1.5 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Meal Category Selector */}
-        <div className="px-6 pt-4 pb-2 bg-white">
-          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Log To Meal</label>
-          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-2xl bg-gray-50 border border-gray-100">
+        <div className="px-4 sm:px-6 pt-3 pb-2 bg-white">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Log To Meal</label>
+          </div>
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/80 overflow-x-auto scrollbar-none">
             {mealOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
                 onClick={() => setMealType(opt.id)}
-                className={`py-1.5 text-xs font-semibold rounded-xl transition-all capitalize ${
+                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-lg transition-all capitalize whitespace-nowrap text-center ${
                   mealType === opt.id
-                    ? "bg-gray-100 text-gray-900 shadow-xs"
+                    ? "bg-white text-gray-900 shadow-xs"
                     : "text-gray-500 hover:text-gray-900"
                 }`}
               >
@@ -446,29 +448,26 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-gray-100 px-6 gap-5 text-xs font-bold bg-white overflow-x-auto">
+        <div className="flex border-b border-gray-100 px-4 sm:px-6 gap-2 sm:gap-4 text-xs font-bold bg-white overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab("camera")}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+            className={`py-2.5 sm:py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "camera"
-                ? "border-gray-200 text-gray-900"
-                : "border-transparent text-gray-500 hover:text-gray-900"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-700"
             }`}
           >
             <Camera className="w-3.5 h-3.5" />
-            <span>AI Camera & Vision</span>
-            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-900">
-              NEW
-            </span>
+            <span>AI Camera</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("ai_parser")}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+            className={`py-2.5 sm:py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "ai_parser"
-                ? "border-gray-200 text-gray-900"
-                : "border-transparent text-gray-500 hover:text-gray-900"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-700"
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -477,31 +476,31 @@ export const FoodLoggerModal: React.FC<FoodLoggerModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("search")}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+            className={`py-2.5 sm:py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "search"
-                ? "border-gray-200 text-gray-900"
-                : "border-transparent text-gray-500 hover:text-gray-900"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-700"
             }`}
           >
             <Search className="w-3.5 h-3.5" />
-            <span>Food Database</span>
+            <span>Database</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("manual")}
-            className={`py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
+            className={`py-2.5 sm:py-3 flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === "manual"
-                ? "border-gray-200 text-gray-900"
-                : "border-transparent text-gray-500 hover:text-gray-900"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-700"
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Manual Entry</span>
+            <span>Manual</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1 bg-white">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 bg-white">
           {/* ========================================================= */}
           {/* TAB 0: AI Camera & Vision Photo Scanner                   */}
           {/* ========================================================= */}
