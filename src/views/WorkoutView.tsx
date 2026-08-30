@@ -232,9 +232,9 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Object.keys(personalRecords).length > 0 ? (
-            Object.entries(personalRecords).map(([name, pr], idx) => (
+        {Object.keys(personalRecords).length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Object.entries(personalRecords).map(([name, pr], idx) => (
               <div key={idx} className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1">
                 <p className="text-xs font-bold text-gray-900 truncate">{name}</p>
                 <p className="text-lg font-bold text-gray-900">
@@ -244,40 +244,17 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
                   {pr.reps} reps · {pr.date}
                 </p>
               </div>
-            ))
-          ) : (
-            <>
-              <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1">
-                <p className="text-xs font-bold text-gray-900">Barbell Bench Press</p>
-                <p className="text-lg font-bold text-gray-900">
-                  185 <span className="text-xs text-gray-500 font-normal">{userProfile.preferredUnits}</span>
-                </p>
-                <p className="text-[11px] text-gray-500">10 reps</p>
-              </div>
-              <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1">
-                <p className="text-xs font-bold text-gray-900">Barbell Back Squat</p>
-                <p className="text-lg font-bold text-gray-900">
-                  245 <span className="text-xs text-gray-500 font-normal">{userProfile.preferredUnits}</span>
-                </p>
-                <p className="text-[11px] text-gray-500">8 reps</p>
-              </div>
-              <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1">
-                <p className="text-xs font-bold text-gray-900">Deadlift (Conventional)</p>
-                <p className="text-lg font-bold text-gray-900">
-                  315 <span className="text-xs text-gray-500 font-normal">{userProfile.preferredUnits}</span>
-                </p>
-                <p className="text-[11px] text-gray-500">5 reps</p>
-              </div>
-              <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-1">
-                <p className="text-xs font-bold text-gray-900">Overhead Press</p>
-                <p className="text-lg font-bold text-gray-900">
-                  125 <span className="text-xs text-gray-500 font-normal">{userProfile.preferredUnits}</span>
-                </p>
-                <p className="text-[11px] text-gray-500">8 reps</p>
-              </div>
-            </>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center border border-dashed border-gray-200 rounded-xl space-y-1">
+            <Award className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+            <p className="text-xs font-bold text-gray-800">No Personal Records Yet</p>
+            <p className="text-[11px] text-gray-500 max-w-sm mx-auto">
+              Complete your first workout routine to automatically detect, log, and celebrate your all-time PRs.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
